@@ -151,6 +151,31 @@ class GeneralCrawler:
             ]
         }
         
+        # Category-specific product images that match the actual products
+        category_images = {
+            'gadgets': [
+                "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&h=300&fit=crop",  # wireless earbuds
+                "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=300&fit=crop",  # bluetooth speaker
+                "https://images.unsplash.com/photo-1603313059737-4c6c5f1b8c8c?w=400&h=300&fit=crop"   # phone case
+            ],
+            'fitness': [
+                "https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=400&h=300&fit=crop",  # fitness tracker
+                "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop"   # smart watch
+            ],
+            'home': [
+                "https://images.unsplash.com/photo-1565814636199-ae8133055c1c?w=400&h=300&fit=crop",  # LED lights
+                "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop"      # kitchen gadgets
+            ],
+            'automotive': [
+                "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop",  # car phone mount
+                "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=400&h=300&fit=crop"  # car accessories
+            ],
+            'beauty': [
+                "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=300&fit=crop",  # face mask
+                "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=300&fit=crop"   # skincare
+            ]
+        }
+        
         # Fallback URLs for categories not in the above list
         fallback_urls = [
             "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000",
@@ -213,6 +238,11 @@ class GeneralCrawler:
             template = random.choice(product_templates)
             price = random.uniform(*template['price_range'])
             
+            # Get category-specific image
+            category = template['category']
+            category_image_list = category_images.get(category, [])
+            product_image = random.choice(category_image_list) if category_image_list else f"https://picsum.photos/400/300?random={random.randint(1, 1000)}"
+            
             product = {
                 'id': f"aliexpress_{random.randint(100000, 999999)}",
                 'title': f"{template['title']} - Premium Quality",
@@ -225,7 +255,7 @@ class GeneralCrawler:
                 'tags': template['tags'],
                 'source_store': 'aliexpress.com',
                 'source_url': random.choice(category_urls.get(template['category'], [random.choice(fallback_urls)])),
-                'image_url': f"https://picsum.photos/400/300?random={random.randint(1, 1000)}",
+                'image_url': product_image,
                 'supplier_links': {'aliexpress': random.choice(category_urls.get(template['category'], [random.choice(fallback_urls)]))},
                 'supplier_prices': {'aliexpress': round(price * 0.6, 2)},
                 'facebook_ads': self._generate_real_facebook_ads(template['title']),
@@ -326,7 +356,7 @@ class GeneralCrawler:
                         product_url = urljoin(source_url, href)
                         break
             
-            # Generate realistic product data
+            # Get category-specific URL and image
             category = self._determine_category_real(title)
             
             # Get category-specific URL
@@ -338,8 +368,40 @@ class GeneralCrawler:
                 'beauty': "https://www.aliexpress.com/wholesale?SearchText=beauty+skincare+products&catId=0&initiative_id=SB_20240101000000"
             }
             
+            # Get category-specific images
+            category_images = {
+                'gadgets': [
+                    "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&h=300&fit=crop",  # wireless earbuds
+                    "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=300&fit=crop",  # bluetooth speaker
+                    "https://images.unsplash.com/photo-1603313059737-4c6c5f1b8c8c?w=400&h=300&fit=crop"   # phone case
+                ],
+                'fitness': [
+                    "https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=400&h=300&fit=crop",  # fitness tracker
+                    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop"   # smart watch
+                ],
+                'home': [
+                    "https://images.unsplash.com/photo-1565814636199-ae8133055c1c?w=400&h=300&fit=crop",  # LED lights
+                    "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop"      # kitchen gadgets
+                ],
+                'automotive': [
+                    "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400&h=300&fit=crop",  # car phone mount
+                    "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=400&h=300&fit=crop"  # car accessories
+                ],
+                'beauty': [
+                    "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=300&fit=crop",  # face mask
+                    "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=300&fit=crop"   # skincare
+                ]
+            }
+            
             fallback_url = "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000"
             category_url = category_urls.get(category, fallback_url)
+            
+            # Get category-specific image or use extracted image
+            category_image_list = category_images.get(category, [])
+            if not image_url and category_image_list:
+                image_url = random.choice(category_image_list)
+            elif not image_url:
+                image_url = f"https://picsum.photos/400/300?random={random.randint(1, 1000)}"
             
             product = {
                 'id': f"aliexpress_{random.randint(100000, 999999)}",
