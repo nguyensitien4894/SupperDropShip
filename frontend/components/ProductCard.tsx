@@ -8,7 +8,8 @@ import {
   EyeIcon,
   ShareIcon,
   StarIcon,
-  SparklesIcon
+  SparklesIcon,
+  ShoppingBagIcon
 } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 
@@ -22,6 +23,7 @@ interface Product {
   category: string
   tags: string[]
   source_store: string
+  source_url?: string
   facebook_ads: any[]
   tiktok_mentions: any[]
   trend_data: any
@@ -201,6 +203,15 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
             <EyeIcon className="w-4 h-4" />
             <span>View Details</span>
           </button>
+          {product.source_url && (
+            <button 
+              onClick={() => window.open(product.source_url, '_blank')}
+              className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-1"
+            >
+              <ShoppingBagIcon className="w-4 h-4" />
+              <span>View Store</span>
+            </button>
+          )}
           <button 
             onClick={onShare}
             className="p-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
