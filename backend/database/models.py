@@ -36,6 +36,7 @@ class Product(BaseModel):
     # Source information
     source_store: Optional[str] = Field(None, description="Original store URL")
     source_url: Optional[str] = Field(None, description="Original product URL")
+    image_url: Optional[str] = Field(None, description="Product image URL")
     
     # Supplier links
     supplier_links: Dict[SupplierPlatform, str] = Field(default={}, description="Supplier platform links")

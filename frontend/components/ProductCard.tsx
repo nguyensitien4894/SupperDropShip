@@ -24,6 +24,7 @@ interface Product {
   tags: string[]
   source_store: string
   source_url?: string
+  image_url?: string
   facebook_ads: any[]
   tiktok_mentions: any[]
   trend_data: any
@@ -79,14 +80,26 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Product Image Placeholder */}
-      <div className="relative h-48 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10" />
-        <div className="relative z-10 text-center">
-          <div className="w-16 h-16 bg-white/80 rounded-full flex items-center justify-center mx-auto mb-2">
-            <SparklesIcon className="w-8 h-8 text-blue-600" />
+      {/* Product Image */}
+      <div className="relative h-48 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center overflow-hidden">
+        {product.image_url ? (
+          <img 
+            src={product.image_url} 
+            alt={product.title}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+        ) : null}
+        <div className={`absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center ${product.image_url ? 'hidden' : ''}`}>
+          <div className="relative z-10 text-center">
+            <div className="w-16 h-16 bg-white/80 rounded-full flex items-center justify-center mx-auto mb-2">
+              <SparklesIcon className="w-8 h-8 text-blue-600" />
+            </div>
+            <p className="text-sm text-gray-600 font-medium">Product Image</p>
           </div>
-          <p className="text-sm text-gray-600 font-medium">Product Image</p>
         </div>
         
         {/* Score Badge */}

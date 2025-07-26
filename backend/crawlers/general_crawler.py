@@ -162,6 +162,10 @@ class GeneralCrawler:
                     if image_url and not image_url.startswith('data:'):
                         break
             
+            # Fallback to placeholder image if no image found
+            if not image_url:
+                image_url = f"https://picsum.photos/400/300?random={random.randint(1, 1000)}"
+            
             # Extract link
             link_selectors = [
                 'a[href*="/item/"]',
@@ -314,6 +318,26 @@ class GeneralCrawler:
             if not price:
                 price = random.uniform(5, 50)
             
+            # Extract image URL
+            img_selectors = [
+                'img[src*="img.temu"]',
+                'img[data-src]',
+                'img[src]',
+                '.product-image img'
+            ]
+            
+            image_url = None
+            for selector in img_selectors:
+                img_elem = card.select_one(selector)
+                if img_elem:
+                    image_url = img_elem.get('src') or img_elem.get('data-src')
+                    if image_url and not image_url.startswith('data:'):
+                        break
+            
+            # Fallback to placeholder image if no image found
+            if not image_url:
+                image_url = f"https://picsum.photos/400/300?random={random.randint(1, 1000)}"
+            
             # Generate realistic product data
             product = {
                 'id': f"temu_{random.randint(100000, 999999)}",
@@ -327,7 +351,7 @@ class GeneralCrawler:
                 'tags': self._extract_tags_real(title),
                 'source_store': 'temu.com',
                 'source_url': f"https://www.temu.com/product/{random.randint(100000, 999999)}",
-                'image_url': None,
+                'image_url': image_url,
                 'supplier_links': {'temu': f"https://www.temu.com/product/{random.randint(100000, 999999)}"},
                 'supplier_prices': {'temu': round(price * 0.7, 2)},
                 'facebook_ads': self._generate_real_facebook_ads(title),
@@ -449,6 +473,27 @@ class GeneralCrawler:
             if not price:
                 price = random.uniform(20, 200)
             
+            # Extract image URL
+            img_selectors = [
+                'img[data-old-hires]',
+                'img[src*="images/I"]',
+                'img[data-src]',
+                'img[src]',
+                '.s-image'
+            ]
+            
+            image_url = None
+            for selector in img_selectors:
+                img_elem = card.select_one(selector)
+                if img_elem:
+                    image_url = img_elem.get('data-old-hires') or img_elem.get('src') or img_elem.get('data-src')
+                    if image_url and not image_url.startswith('data:') and 'images/I' in image_url:
+                        break
+            
+            # Fallback to placeholder image if no image found
+            if not image_url:
+                image_url = f"https://picsum.photos/400/300?random={random.randint(1, 1000)}"
+            
             # Extract ASIN for product URL
             asin = card.get('data-asin') or f"B{random.randint(1000000000, 9999999999)}"
             
@@ -465,7 +510,7 @@ class GeneralCrawler:
                 'tags': self._extract_tags_real(title),
                 'source_store': 'amazon.com',
                 'source_url': f"https://www.amazon.com/dp/{asin}",
-                'image_url': None,
+                'image_url': image_url,
                 'supplier_links': {},
                 'supplier_prices': {},
                 'facebook_ads': self._generate_real_facebook_ads(title),
