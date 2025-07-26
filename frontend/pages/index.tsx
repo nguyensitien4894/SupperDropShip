@@ -22,6 +22,7 @@ import FilterPanel from '../components/FilterPanel'
 import { useProducts, Product } from '../hooks/useProducts'
 import { useNotifications, notificationUtils } from '../components/NotificationSystem'
 import { useSavedProducts } from '../hooks/useLocalStorage'
+import axios from 'axios'
 
 export default function Dashboard() {
   const {
@@ -99,14 +100,40 @@ export default function Dashboard() {
       })
       addNotification(notificationUtils.success(
         'Shared Successfully',
-        'Product has been shared successfully.'
+        `${product.title} has been shared.`
       ))
     } catch (err) {
-      // Fallback to clipboard
-      navigator.clipboard.writeText(`${product.title} - ${product.description}`)
+      addNotification(notificationUtils.error(
+        'Share Failed',
+        'Failed to share product. Please try again.'
+      ))
+    }
+  }
+
+  const handleCrawlProducts = async () => {
+    try {
       addNotification(notificationUtils.info(
-        'Link Copied',
-        'Product information has been copied to clipboard.'
+        'Crawling Started',
+        'Starting to crawl products from multiple sources...'
+      ))
+      
+      const response = await axios.post('http://localhost:8000/api/products/crawl/start?max_products_per_source=20')
+      
+      if (response.data.success) {
+        addNotification(notificationUtils.success(
+          'Crawl Completed',
+          `Successfully crawled ${response.data.data.total_products} products from multiple sources.`
+        ))
+        
+        // Refresh the products list
+        await refreshProducts()
+      } else {
+        throw new Error('Crawl failed')
+      }
+    } catch (err) {
+      addNotification(notificationUtils.error(
+        'Crawl Failed',
+        'Failed to crawl products. Please try again.'
       ))
     }
   }
@@ -141,6 +168,14 @@ export default function Dashboard() {
             <p className="mt-2 text-gray-600">Discover winning dropshipping products with AI-powered insights</p>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+            <button
+              onClick={handleCrawlProducts}
+              disabled={loading}
+              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 bg-green-50 hover:bg-green-100"
+              title="Crawl New Products"
+            >
+              <SparklesIcon className="w-5 h-5 text-green-600" />
+            </button>
             <button
               onClick={handleRefresh}
               disabled={loading}

@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
+from datetime import datetime
 import logging
 from ..dependencies import get_current_user
 from ...database.memory_storage import memory_storage
 from ...database.models import Product, ProductsResponse, ProductResponse, CrawlRequest
 from ...scoring.engine import ScoringEngine
+from ...crawlers.crawler_manager import crawler_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -254,4 +256,46 @@ async def advanced_search(request: CrawlRequest):
         
     except Exception as e:
         logger.error(f"Failed to perform advanced search: {e}")
-        raise HTTPException(status_code=500, detail="Failed to perform search") 
+        raise HTTPException(status_code=500, detail="Failed to perform search")
+
+@router.post("/crawl/start")
+async def start_product_crawl(max_products_per_source: int = 30):
+    """Start crawling products from various sources"""
+    try:
+        logger.info(f"Starting product crawl with {max_products_per_source} products per source")
+        
+        # Run the crawler
+        async with crawler_manager:
+            products = await crawler_manager.run_full_crawl(max_products_per_source)
+        
+        return {
+            "success": True, 
+            "message": f"Successfully crawled {len(products)} products from multiple sources",
+            "data": {
+                "total_products": len(products),
+                "products_added": len(products)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error during product crawl: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to crawl products: {str(e)}")
+
+@router.get("/crawl/status")
+async def get_crawl_status():
+    """Get current crawl status and product count"""
+    try:
+        total_products = len(memory_storage.products)
+        
+        return {
+            "success": True,
+            "data": {
+                "total_products": total_products,
+                "last_updated": datetime.utcnow().isoformat(),
+                "status": "ready"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting crawl status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get crawl status") 
