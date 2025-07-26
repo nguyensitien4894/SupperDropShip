@@ -46,6 +46,20 @@ class CrawlerManager:
         
         # 2. Crawl Shopify stores
         try:
+            # Popular Shopify stores to crawl
+            store_urls = [
+                "https://www.gymshark.com",
+                "https://www.kyliecosmetics.com", 
+                "https://www.allbirds.com",
+                "https://www.glossier.com",
+                "https://www.awaytravel.com",
+                "https://www.ring.com",
+                "https://www.peloton.com",
+                "https://www.warbyparker.com",
+                "https://www.casper.com",
+                "https://www.bombas.com"
+            ]
+            
             shopify_products = await self.shopify_crawler.crawl_multiple_stores(store_urls, max_products_per_source)
             all_products.extend(shopify_products)
             logger.info(f"Added {len(shopify_products)} products from Shopify stores")

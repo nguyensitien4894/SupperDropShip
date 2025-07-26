@@ -36,39 +36,57 @@ class ShopifyCrawler:
             if not store_url.startswith('http'):
                 store_url = f'https://{store_url}'
             
-            # Get products page
-            products_url = urljoin(store_url, '/products.json')
+            # Try different Shopify API endpoints
+            api_endpoints = [
+                '/products.json',
+                '/collections/all/products.json',
+                '/collections/frontpage/products.json'
+            ]
             
-            async with self.session.get(products_url) as response:
-                if response.status != 200:
-                    logger.error(f"Failed to fetch products from {store_url}: {response.status}")
-                    return []
-                
-                data = await response.json()
-                products_data = data.get('products', [])
-                
-                logger.info(f"Found {len(products_data)} products in {store_url}")
-                
-                # Limit products
-                products_data = products_data[:max_products]
-                
-                # Extract product information
-                products = []
-                for product_data in products_data:
-                    try:
-                        product = await self._extract_product_info(product_data, store_url)
-                        if product:
-                            products.append(product)
+            products_data = []
+            
+            for endpoint in api_endpoints:
+                try:
+                    products_url = urljoin(store_url, endpoint)
+                    logger.info(f"Trying endpoint: {products_url}")
+                    
+                    async with self.session.get(products_url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            products_data = data.get('products', [])
+                            logger.info(f"Found {len(products_data)} products using endpoint: {endpoint}")
+                            break
+                        else:
+                            logger.warning(f"Endpoint {endpoint} returned status {response.status}")
                             
-                        # Add delay to be respectful
-                        await asyncio.sleep(0.5)
+                except Exception as e:
+                    logger.warning(f"Error trying endpoint {endpoint}: {e}")
+                    continue
+            
+            if not products_data:
+                logger.warning(f"No products found for store: {store_url}")
+                return []
+            
+            # Limit products
+            products_data = products_data[:max_products]
+            
+            # Extract product information
+            products = []
+            for product_data in products_data:
+                try:
+                    product = await self._extract_product_info(product_data, store_url)
+                    if product:
+                        products.append(product)
                         
-                    except Exception as e:
-                        logger.error(f"Error extracting product {product_data.get('id')}: {e}")
-                        continue
-                
-                logger.info(f"Successfully extracted {len(products)} products from {store_url}")
-                return products
+                    # Add delay to be respectful
+                    await asyncio.sleep(0.5)
+                    
+                except Exception as e:
+                    logger.error(f"Error extracting product {product_data.get('id')}: {e}")
+                    continue
+            
+            logger.info(f"Successfully extracted {len(products)} products from {store_url}")
+            return products
                 
         except Exception as e:
             logger.error(f"Error crawling Shopify store {store_url}: {e}")
@@ -245,17 +263,18 @@ class ShopifyCrawler:
         
         for store_url in store_urls:
             try:
+                logger.info(f"Crawling Shopify store: {store_url}")
                 products = await self.crawl_shopify_store(store_url, max_products_per_store)
                 all_products.extend(products)
                 
-                # Add delay between stores
+                # Add delay between stores to be respectful
                 await asyncio.sleep(2)
                 
             except Exception as e:
                 logger.error(f"Error crawling store {store_url}: {e}")
                 continue
         
-        logger.info(f"Total products crawled: {len(all_products)}")
+        logger.info(f"Total products from Shopify stores: {len(all_products)}")
         return all_products
 
 # Popular Shopify stores to crawl
