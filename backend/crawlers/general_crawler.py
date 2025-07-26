@@ -243,26 +243,59 @@ class GeneralCrawler:
             category_image_list = category_images.get(category, [])
             product_image = random.choice(category_image_list) if category_image_list else f"https://picsum.photos/400/300?random={random.randint(1, 1000)}"
             
+            # Create specific product URL based on the actual product title
+            def create_specific_product_url(title: str, category: str) -> str:
+                """Create a more specific AliExpress URL based on product title"""
+                # Clean and prepare the title for URL
+                clean_title = title.lower().replace(' - premium quality', '').replace(' - ', ' ').replace('  ', ' ')
+                words = clean_title.split()[:6]  # Take first 6 words for more specificity
+                search_query = '+'.join(words)
+                
+                # Add category-specific keywords to make search more targeted
+                category_keywords = {
+                    'gadgets': 'wireless+bluetooth+premium',
+                    'fitness': 'smart+fitness+tracker+premium',
+                    'home': 'kitchen+gadget+premium+quality',
+                    'automotive': 'car+phone+mount+premium',
+                    'beauty': 'beauty+face+mask+premium+quality'
+                }
+                
+                category_keyword = category_keywords.get(category, 'premium+quality')
+                enhanced_search = f"{search_query}+{category_keyword}"
+                
+                # Create specific product search URL with more targeted parameters
+                return f"https://www.aliexpress.com/wholesale?SearchText={enhanced_search}&catId=0&initiative_id=SB_20240101000000&SortType=total_tranpro_desc&g=y"
+            
+            product_title = f"{template['title']} - Premium Quality"
+            specific_url = create_specific_product_url(product_title, category)
+            
+            # Fallback to category URL if specific URL creation fails
+            category_url_list = category_urls.get(category, fallback_urls)
+            fallback_url = random.choice(category_url_list)
+            final_url = specific_url or fallback_url
+            
             product = {
                 'id': f"aliexpress_{random.randint(100000, 999999)}",
-                'title': f"{template['title']} - Premium Quality",
+                'title': product_title,
                 'description': f"High-quality {template['title'].lower()} from AliExpress. Best seller with great reviews!",
                 'price': round(price, 2),
                 'compare_price': round(price * random.uniform(1.3, 2.0), 2),
                 'currency': 'USD',
                 'score': self._calculate_real_score(price, template['title']),
-                'category': template['category'],
+                'category': category,
                 'tags': template['tags'],
                 'source_store': 'aliexpress.com',
-                'source_url': random.choice(category_urls.get(template['category'], [random.choice(fallback_urls)])),
+                'source_url': final_url,
                 'image_url': product_image,
-                'supplier_links': {'aliexpress': random.choice(category_urls.get(template['category'], [random.choice(fallback_urls)]))},
+                'supplier_links': {'aliexpress': final_url},
                 'supplier_prices': {'aliexpress': round(price * 0.6, 2)},
                 'facebook_ads': self._generate_real_facebook_ads(template['title']),
                 'tiktok_mentions': self._generate_real_tiktok_mentions(template['title']),
                 'trend_data': self._generate_real_trend_data(template['title']),
                 'created_at': datetime.utcnow(),
+                'updated_at': datetime.utcnow()
             }
+            
             products.append(product)
         
         logger.info(f"Generated {len(products)} fallback AliExpress products")
@@ -359,7 +392,30 @@ class GeneralCrawler:
             # Get category-specific URL and image
             category = self._determine_category_real(title)
             
-            # Get category-specific URL
+            # Create more specific product URLs based on the actual product title
+            def create_specific_product_url(title: str, category: str) -> str:
+                """Create a more specific AliExpress URL based on product title"""
+                # Clean and prepare the title for URL
+                clean_title = title.lower().replace(' - premium quality', '').replace(' - ', ' ').replace('  ', ' ')
+                words = clean_title.split()[:6]  # Take first 6 words for more specificity
+                search_query = '+'.join(words)
+                
+                # Add category-specific keywords to make search more targeted
+                category_keywords = {
+                    'gadgets': 'wireless+bluetooth+premium',
+                    'fitness': 'smart+fitness+tracker+premium',
+                    'home': 'kitchen+gadget+premium+quality',
+                    'automotive': 'car+phone+mount+premium',
+                    'beauty': 'beauty+face+mask+premium+quality'
+                }
+                
+                category_keyword = category_keywords.get(category, 'premium+quality')
+                enhanced_search = f"{search_query}+{category_keyword}"
+                
+                # Create specific product search URL with more targeted parameters
+                return f"https://www.aliexpress.com/wholesale?SearchText={enhanced_search}&catId=0&initiative_id=SB_20240101000000&SortType=total_tranpro_desc&g=y"
+            
+            # Get category-specific URL as fallback
             category_urls = {
                 'gadgets': "https://www.aliexpress.com/wholesale?SearchText=wireless+bluetooth+gadgets&catId=0&initiative_id=SB_20240101000000",
                 'fitness': "https://www.aliexpress.com/wholesale?SearchText=smart+fitness+tracker&catId=0&initiative_id=SB_20240101000000",
@@ -367,6 +423,13 @@ class GeneralCrawler:
                 'automotive': "https://www.aliexpress.com/wholesale?SearchText=car+accessories+phone+mount&catId=0&initiative_id=SB_20240101000000",
                 'beauty': "https://www.aliexpress.com/wholesale?SearchText=beauty+skincare+products&catId=0&initiative_id=SB_20240101000000"
             }
+            
+            # Create specific product URL based on title
+            specific_product_url = create_specific_product_url(title, category)
+            fallback_url = category_urls.get(category, "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000")
+            
+            # Use specific product URL if available, otherwise use category URL
+            final_url = product_url or specific_product_url or fallback_url
             
             # Get category-specific images
             category_images = {
@@ -393,9 +456,6 @@ class GeneralCrawler:
                 ]
             }
             
-            fallback_url = "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000"
-            category_url = category_urls.get(category, fallback_url)
-            
             # Get category-specific image or use extracted image
             category_image_list = category_images.get(category, [])
             if not image_url and category_image_list:
@@ -414,9 +474,9 @@ class GeneralCrawler:
                 'category': category,
                 'tags': self._extract_tags_real(title),
                 'source_store': 'aliexpress.com',
-                'source_url': product_url or category_url,
+                'source_url': final_url,
                 'image_url': image_url,
-                'supplier_links': {'aliexpress': product_url or category_url},
+                'supplier_links': {'aliexpress': final_url},
                 'supplier_prices': {'aliexpress': round(price * 0.6, 2)},
                 'facebook_ads': self._generate_real_facebook_ads(title),
                 'tiktok_mentions': self._generate_real_tiktok_mentions(title),
