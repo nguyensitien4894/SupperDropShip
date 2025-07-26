@@ -74,14 +74,50 @@ export function useProducts(): UseProductsReturn {
     try {
       setLoading(true)
       setError(null)
-      const response = await axios.get('http://localhost:8000/api/products/')
-      setProducts(response.data.data || [])
-    } catch (err) {
-      setError('Failed to fetch products')
+      
+      // Build query parameters
+      const params = new URLSearchParams()
+      if (filterOptions.searchTerm) params.append('search', filterOptions.searchTerm)
+      if (filterOptions.category !== 'all') params.append('category', filterOptions.category)
+      if (filterOptions.minScore > 0) params.append('min_score', filterOptions.minScore.toString())
+      if (filterOptions.maxPrice < 1000) params.append('max_price', filterOptions.maxPrice.toString())
+      if (filterOptions.tags.length > 0) params.append('tags', filterOptions.tags.join(','))
+      params.append('sort_by', sortBy)
+      params.append('sort_order', '-1')
+      params.append('page', '1')
+      params.append('limit', '100')
+
+      const response = await axios.get(`http://localhost:8000/api/products/?${params.toString()}`)
+      
+      if (response.data.success) {
+        setProducts(response.data.data || [])
+      } else {
+        setError(response.data.message || 'Failed to fetch products')
+      }
+    } catch (err: any) {
       console.error('Error fetching products:', err)
+      if (err.response?.status === 404) {
+        setError('API endpoint not found. Please check if the backend is running.')
+      } else if (err.code === 'ECONNREFUSED') {
+        setError('Cannot connect to backend server. Please start the backend first.')
+      } else {
+        setError(err.response?.data?.detail || err.message || 'Failed to fetch products')
+      }
     } finally {
       setLoading(false)
     }
+  }, [filterOptions, sortBy])
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/products/stats/overview')
+      if (response.data.success) {
+        return response.data.data
+      }
+    } catch (err) {
+      console.error('Error fetching stats:', err)
+    }
+    return null
   }, [])
 
   useEffect(() => {
@@ -89,43 +125,14 @@ export function useProducts(): UseProductsReturn {
   }, [fetchProducts])
 
   const filteredProducts = products
-    .filter(product => {
-      const matchesSearch = product.title.toLowerCase().includes(filterOptions.searchTerm.toLowerCase()) ||
-                           product.description.toLowerCase().includes(filterOptions.searchTerm.toLowerCase())
-      const matchesCategory = filterOptions.category === 'all' || product.category === filterOptions.category
-      const matchesScore = product.score >= filterOptions.minScore
-      const matchesPrice = product.price <= filterOptions.maxPrice
-      const matchesTags = filterOptions.tags.length === 0 || 
-                         filterOptions.tags.some(tag => product.tags.includes(tag))
-      
-      return matchesSearch && matchesCategory && matchesScore && matchesPrice && matchesTags
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'score':
-          return b.score - a.score
-        case 'price':
-          return a.price - b.price
-        case 'price_high':
-          return b.price - a.price
-        case 'trend':
-          return (b.trend_data?.trend_score || 0) - (a.trend_data?.trend_score || 0)
-        case 'newest':
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-        case 'name':
-          return a.title.localeCompare(b.title)
-        default:
-          return 0
-      }
-    })
 
   const stats = {
     totalProducts: products.length,
     highScoreProducts: products.filter(p => p.score >= 80).length,
     averageScore: products.length > 0 ? (products.reduce((sum, p) => sum + p.score, 0) / products.length).toFixed(1) : '0',
     averagePrice: products.length > 0 ? (products.reduce((sum, p) => sum + p.price, 0) / products.length).toFixed(2) : '0',
-    totalFacebookAds: products.reduce((sum, p) => sum + p.facebook_ads.length, 0),
-    totalTikTokMentions: products.reduce((sum, p) => sum + p.tiktok_mentions.length, 0)
+    totalFacebookAds: products.reduce((sum, p) => sum + (p.facebook_ads?.length || 0), 0),
+    totalTikTokMentions: products.reduce((sum, p) => sum + (p.tiktok_mentions?.length || 0), 0)
   }
 
   const updateFilterOptions = useCallback((newOptions: Partial<FilterOptions>) => {

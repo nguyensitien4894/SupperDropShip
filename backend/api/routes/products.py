@@ -1,117 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
-from datetime import datetime
 import logging
-
-from backend.database.models import Product, ProductResponse, ProductsResponse, CrawlRequest
-from backend.scoring.engine import ScoringEngine
+from ..dependencies import get_current_user
+from ...database.repository import product_repository
+from ...database.models import Product, ProductsResponse, ProductResponse, CrawlRequest
+from ...scoring.engine import ScoringEngine
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
-
-# Initialize scoring engine
-scoring_engine = ScoringEngine()
-
-# Mock database for demo purposes
-mock_products = [
-    {
-        "id": "product_1",
-        "title": "LED Flame Speaker",
-        "description": "Portable Bluetooth speaker with realistic LED flame effect",
-        "price": 29.99,
-        "compare_price": 59.99,
-        "currency": "USD",
-        "score": 82.5,
-        "category": "gadgets",
-        "tags": ["gadgets", "home", "gift", "bluetooth"],
-        "source_store": "example-store.com",
-        "source_url": "https://example-store.com/products/led-flame-speaker",
-        "supplier_links": {
-            "aliexpress": "https://aliexpress.com/item/123456",
-            "temu": "https://temu.com/item/789012"
-        },
-        "supplier_prices": {
-            "aliexpress": 12.50,
-            "temu": 15.00
-        },
-        "facebook_ads": [
-            {
-                "id": "ad_1",
-                "ad_text": "🔥 This LED Flame Speaker is AMAZING!",
-                "engagement_rate": 0.045,
-                "reach": 10000,
-                "impressions": 15000,
-                "clicks": 450,
-                "spend": 500.00
-            }
-        ],
-        "tiktok_mentions": [
-            {
-                "id": "video_1",
-                "video_url": "https://tiktok.com/@user/video/123",
-                "description": "This speaker is so cool! 🔥",
-                "views": 50000,
-                "likes": 2500,
-                "shares": 300,
-                "comments": 150
-            }
-        ],
-        "trend_data": {
-            "keyword": "LED flame speaker",
-            "trend_score": 75
-        },
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    },
-    {
-        "id": "product_2",
-        "title": "Smart Water Bottle",
-        "description": "Hydration tracking water bottle with app connectivity",
-        "price": 49.99,
-        "compare_price": 79.99,
-        "currency": "USD",
-        "score": 78.2,
-        "category": "fitness",
-        "tags": ["fitness", "health", "smart", "hydration"],
-        "source_store": "fitness-store.com",
-        "source_url": "https://fitness-store.com/products/smart-water-bottle",
-        "supplier_links": {
-            "aliexpress": "https://aliexpress.com/item/654321"
-        },
-        "supplier_prices": {
-            "aliexpress": 25.00
-        },
-        "facebook_ads": [
-            {
-                "id": "ad_2",
-                "ad_text": "Stay hydrated with this smart water bottle! 💧",
-                "engagement_rate": 0.032,
-                "reach": 8000,
-                "impressions": 12000,
-                "clicks": 256,
-                "spend": 300.00
-            }
-        ],
-        "tiktok_mentions": [
-            {
-                "id": "video_2",
-                "video_url": "https://tiktok.com/@user/video/456",
-                "description": "My new smart water bottle! 💧",
-                "views": 30000,
-                "likes": 1800,
-                "shares": 200,
-                "comments": 120
-            }
-        ],
-        "trend_data": {
-            "keyword": "smart water bottle",
-            "trend_score": 65
-        },
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
-]
 
 @router.get("/", response_model=ProductsResponse)
 async def get_products(
@@ -119,54 +15,68 @@ async def get_products(
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
     category: Optional[str] = Query(None, description="Filter by category"),
     min_score: Optional[float] = Query(None, ge=0, le=100, description="Minimum score"),
-    max_price: Optional[float] = Query(None, description="Maximum price"),
-    search: Optional[str] = Query(None, description="Search in title and description")
+    max_price: Optional[float] = Query(None, ge=0, description="Maximum price"),
+    search: Optional[str] = Query(None, description="Search term"),
+    tags: Optional[str] = Query(None, description="Comma-separated tags"),
+    sort_by: str = Query("score", description="Sort field"),
+    sort_order: int = Query(-1, description="Sort order (-1 for desc, 1 for asc)")
 ):
-    """Get all products with optional filtering"""
+    """Get products with filtering and pagination"""
     try:
-        # Apply filters
-        filtered_products = mock_products.copy()
+        # Parse tags
+        tag_list = None
+        if tags:
+            tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
         
-        if category:
-            filtered_products = [p for p in filtered_products if p.get('category') == category]
+        # Calculate skip
+        skip = (page - 1) * limit
         
+        # Get products from database
+        products = await product_repository.get_products(
+            skip=skip,
+            limit=limit,
+            category=category,
+            min_score=min_score,
+            max_price=max_price,
+            search_term=search,
+            tags=tag_list,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        
+        # Get total count for pagination
+        filter_query = {}
+        if category and category != "all":
+            filter_query["category"] = category
         if min_score is not None:
-            filtered_products = [p for p in filtered_products if p.get('score', 0) >= min_score]
-        
+            filter_query["score"] = {"$gte": min_score}
         if max_price is not None:
-            filtered_products = [p for p in filtered_products if p.get('price', 0) <= max_price]
+            if "score" in filter_query:
+                filter_query["score"]["$lte"] = max_price
+            else:
+                filter_query["price"] = {"$lte": max_price}
+        if tag_list:
+            filter_query["tags"] = {"$in": tag_list}
         
-        if search:
-            search_lower = search.lower()
-            filtered_products = [
-                p for p in filtered_products 
-                if search_lower in p.get('title', '').lower() or 
-                   search_lower in p.get('description', '').lower()
-            ]
-        
-        # Pagination
-        total = len(filtered_products)
-        start_idx = (page - 1) * limit
-        end_idx = start_idx + limit
-        paginated_products = filtered_products[start_idx:end_idx]
+        total = await product_repository.get_products_count(filter_query)
         
         return ProductsResponse(
             success=True,
-            data=paginated_products,
+            data=products,
             total=total,
             page=page,
             limit=limit
         )
         
     except Exception as e:
-        logger.error(f"Error getting products: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Failed to get products: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve products")
 
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: str):
     """Get a specific product by ID"""
     try:
-        product = next((p for p in mock_products if p['id'] == product_id), None)
+        product = await product_repository.get_product(product_id)
         
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -176,112 +86,172 @@ async def get_product(product_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting product {product_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Failed to get product {product_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve product")
 
-@router.get("/{product_id}/similar", response_model=ProductsResponse)
-async def get_similar_products(
-    product_id: str,
-    limit: int = Query(10, ge=1, le=50, description="Number of similar products")
-):
-    """Get similar products based on category and tags"""
+@router.post("/", response_model=ProductResponse)
+async def create_product(product: Product):
+    """Create a new product"""
     try:
-        # Find the target product
-        target_product = next((p for p in mock_products if p['id'] == product_id), None)
+        # Calculate score if not provided
+        if product.score == 0:
+            scoring_engine = ScoringEngine()
+            product.score = scoring_engine.calculate_score(product)
         
-        if not target_product:
-            raise HTTPException(status_code=404, detail="Product not found")
+        created_product = await product_repository.create_product(product)
         
-        # Find similar products (same category or similar tags)
-        target_category = target_product.get('category')
-        target_tags = set(target_product.get('tags', []))
-        
-        similar_products = []
-        for product in mock_products:
-            if product['id'] == product_id:
-                continue  # Skip the target product
-            
-            # Calculate similarity score
-            category_match = product.get('category') == target_category
-            tag_overlap = len(set(product.get('tags', [])) & target_tags)
-            
-            if category_match or tag_overlap > 0:
-                similar_products.append(product)
-        
-        # Sort by similarity (category match + tag overlap)
-        similar_products.sort(
-            key=lambda p: (
-                p.get('category') == target_category,
-                len(set(p.get('tags', [])) & target_tags)
-            ),
-            reverse=True
+        return ProductResponse(
+            success=True,
+            data=created_product,
+            message="Product created successfully"
         )
         
-        return ProductsResponse(
+    except Exception as e:
+        logger.error(f"Failed to create product: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create product")
+
+@router.put("/{product_id}", response_model=ProductResponse)
+async def update_product(product_id: str, product_update: dict):
+    """Update a product"""
+    try:
+        updated_product = await product_repository.update_product(product_id, product_update)
+        
+        if not updated_product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        return ProductResponse(
             success=True,
-            data=similar_products[:limit],
-            total=len(similar_products),
-            page=1,
-            limit=limit
+            data=updated_product,
+            message="Product updated successfully"
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting similar products for {product_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Failed to update product {product_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update product")
 
-@router.get("/{product_id}/score-breakdown")
-async def get_score_breakdown(product_id: str):
-    """Get detailed score breakdown for a product"""
+@router.delete("/{product_id}")
+async def delete_product(product_id: str):
+    """Delete a product"""
     try:
-        product = next((p for p in mock_products if p['id'] == product_id), None)
+        success = await product_repository.delete_product(product_id)
         
-        if not product:
+        if not success:
             raise HTTPException(status_code=404, detail="Product not found")
         
-        # Get score breakdown using scoring engine
-        breakdown = scoring_engine.get_score_breakdown(product)
+        return {"success": True, "message": "Product deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete product {product_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete product")
+
+@router.get("/categories/list")
+async def get_categories():
+    """Get all available categories"""
+    try:
+        categories = await product_repository.get_categories()
+        return {"success": True, "data": categories}
+        
+    except Exception as e:
+        logger.error(f"Failed to get categories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve categories")
+
+@router.get("/tags/list")
+async def get_tags():
+    """Get all available tags"""
+    try:
+        tags = await product_repository.get_tags()
+        return {"success": True, "data": tags}
+        
+    except Exception as e:
+        logger.error(f"Failed to get tags: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve tags")
+
+@router.get("/stats/overview")
+async def get_stats():
+    """Get product statistics"""
+    try:
+        stats = await product_repository.get_stats()
+        return {"success": True, "data": stats}
+        
+    except Exception as e:
+        logger.error(f"Failed to get stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve statistics")
+
+@router.post("/bulk/import")
+async def bulk_import_products(products: List[Product]):
+    """Bulk import products"""
+    try:
+        created_products = []
+        scoring_engine = ScoringEngine()
+        
+        for product in products:
+            # Calculate score if not provided
+            if product.score == 0:
+                product.score = scoring_engine.calculate_score(product)
+            
+            created_product = await product_repository.create_product(product)
+            created_products.append(created_product)
         
         return {
             "success": True,
-            "product_id": product_id,
-            "data": breakdown
+            "message": f"Successfully imported {len(created_products)} products",
+            "data": created_products
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error getting score breakdown for {product_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Failed to bulk import products: {e}")
+        raise HTTPException(status_code=500, detail="Failed to import products")
 
-@router.post("/crawl", response_model=ProductsResponse)
-async def crawl_products(request: CrawlRequest):
-    """Crawl for new products based on keywords"""
+@router.post("/search/advanced")
+async def advanced_search(request: CrawlRequest):
+    """Advanced product search with multiple criteria"""
     try:
-        # This would integrate with the actual crawlers
-        # For now, return mock data
-        logger.info(f"Crawling for products with keywords: {request.keywords}")
+        # Build filter query based on request
+        filter_query = {}
         
-        # Simulate crawling delay
-        import asyncio
-        await asyncio.sleep(1)
+        if request.category:
+            filter_query["category"] = request.category
+            
+        if request.min_score is not None:
+            filter_query["score"] = {"$gte": request.min_score}
+            
+        if request.max_price is not None:
+            if "score" in filter_query:
+                filter_query["score"]["$lte"] = request.max_price
+            else:
+                filter_query["price"] = {"$lte": request.max_price}
         
-        # Return mock products that match the keywords
-        matching_products = []
-        for product in mock_products:
-            if any(keyword.lower() in product['title'].lower() for keyword in request.keywords):
-                matching_products.append(product)
+        # Get products
+        products = await product_repository.get_products(
+            limit=request.limit,
+            category=request.category.value if request.category else None,
+            min_score=request.min_score,
+            max_price=request.max_price,
+            sort_by="score",
+            sort_order=-1
+        )
+        
+        # Filter by keywords if provided
+        if request.keywords:
+            filtered_products = []
+            for product in products:
+                product_text = f"{product.title} {product.description} {' '.join(product.tags)}".lower()
+                if any(keyword.lower() in product_text for keyword in request.keywords):
+                    filtered_products.append(product)
+            products = filtered_products
         
         return ProductsResponse(
             success=True,
-            data=matching_products[:request.limit],
-            total=len(matching_products),
+            data=products,
+            total=len(products),
             page=1,
-            limit=request.limit,
-            message=f"Found {len(matching_products)} products matching keywords"
+            limit=len(products)
         )
         
     except Exception as e:
-        logger.error(f"Error crawling products: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") 
+        logger.error(f"Failed to perform advanced search: {e}")
+        raise HTTPException(status_code=500, detail="Failed to perform search") 
