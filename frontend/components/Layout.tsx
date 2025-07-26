@@ -14,6 +14,7 @@ import { useRouter } from 'next/router'
 
 interface LayoutProps {
   children: React.ReactNode
+  showFilters?: boolean
 }
 
 const navigation = [
@@ -23,7 +24,7 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ]
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children, showFilters = false }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
 
@@ -98,7 +99,7 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className={`lg:pl-64 ${showFilters ? 'lg:pr-80' : ''}`}>
         {/* Top bar */}
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <button

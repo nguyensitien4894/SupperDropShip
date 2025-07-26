@@ -93,21 +93,33 @@ export default function FilterPanel({
       )}
 
       {/* Desktop Filter Panel */}
-      <div className="hidden lg:block w-80 bg-white border-r border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-medium text-gray-900">Filters</h2>
-          <AdjustmentsHorizontalIcon className="w-5 h-5 text-gray-400" />
+      {isOpen && (
+        <div className="hidden lg:fixed lg:inset-y-0 lg:right-0 lg:flex lg:w-80 lg:flex-col lg:z-30">
+          <div className="flex flex-col flex-grow bg-white border-l border-gray-200">
+            <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Filters</h2>
+              <button
+                onClick={onToggle}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <FilterContent
+                localFilters={localFilters}
+                setLocalFilters={setLocalFilters}
+                categories={categories}
+                availableTags={availableTags}
+                handleTagToggle={handleTagToggle}
+                handleApplyFilters={handleApplyFilters}
+                handleReset={handleReset}
+                onToggle={onToggle}
+              />
+            </div>
+          </div>
         </div>
-        <FilterContent
-          localFilters={localFilters}
-          setLocalFilters={setLocalFilters}
-          categories={categories}
-          availableTags={availableTags}
-          handleTagToggle={handleTagToggle}
-          handleApplyFilters={handleApplyFilters}
-          handleReset={handleReset}
-        />
-      </div>
+      )}
     </>
   )
 }
