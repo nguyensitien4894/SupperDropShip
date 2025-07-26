@@ -6,7 +6,7 @@ import random
 
 from .shopify_crawler import ShopifyCrawler
 from .general_crawler import GeneralCrawler
-from database.memory_storage import memory_storage
+from ..database.memory_storage import memory_storage
 from ..database.models import Product
 
 logger = logging.getLogger(__name__)

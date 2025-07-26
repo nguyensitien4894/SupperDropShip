@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
-from dependencies import get_current_user
-from database.memory_storage import memory_storage
-from database.models import Product
+from ..dependencies import get_current_user
+from ...database.memory_storage import memory_storage
+from ...database.models import Product
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -13,7 +13,7 @@ router = APIRouter()
 async def get_store_overview():
     """Get store overview and statistics"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         # Store statistics
         total_products = len(products)
@@ -90,7 +90,7 @@ async def get_store_products(
 ):
     """Get store products with filtering and pagination"""
     try:
-        products = memory_storage.products.copy()
+        products = list(memory_storage.products.values())
         
         # Apply filters
         if category:
@@ -143,7 +143,7 @@ async def get_store_products(
 async def get_store_categories():
     """Get all store categories with statistics"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         categories = {}
         for product in products:
@@ -191,7 +191,7 @@ async def get_store_categories():
 async def get_store_sources():
     """Get all store sources with statistics"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         sources = {}
         for product in products:
@@ -235,7 +235,7 @@ async def get_store_sources():
 async def get_store_performance():
     """Get store performance metrics"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         # Performance metrics
         performance = {

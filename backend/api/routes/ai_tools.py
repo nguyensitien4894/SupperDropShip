@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, List, Optional
 import logging
 
-from database.models import AIRewriteRequest
-from ai.writer import AIWriter
-from database.memory_storage import memory_storage
+from ...database.models import AIRewriteRequest
+from ...ai.writer import AIWriter
+from ...database.memory_storage import memory_storage
 
 logger = logging.getLogger(__name__)
 
@@ -310,7 +310,7 @@ async def analyze_product_trends(request: Dict[str, Any]):
             raise HTTPException(status_code=400, detail="Keyword or category is required")
         
         # Get products for analysis
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         relevant_products = []
         
         if keyword:
@@ -354,7 +354,7 @@ async def analyze_product_trends(request: Dict[str, Any]):
 async def get_ai_insights():
     """Get AI-powered insights for the entire store"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         if not products:
             return {

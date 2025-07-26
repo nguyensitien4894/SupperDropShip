@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
-from dependencies import get_current_user
-from database.memory_storage import memory_storage
-from database.models import Product
+from ..dependencies import get_current_user
+from ...database.memory_storage import memory_storage
+from ...database.models import Product
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -13,7 +13,7 @@ router = APIRouter()
 async def get_analytics_overview():
     """Get comprehensive analytics overview"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         # Calculate basic metrics
         total_products = len(products)
@@ -89,7 +89,7 @@ async def get_analytics_overview():
 async def get_trend_analytics():
     """Get trend analytics data"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         # Trend analysis by category
         category_trends = {}
@@ -156,7 +156,7 @@ async def get_trend_analytics():
 async def get_performance_metrics():
     """Get detailed performance metrics"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         # Facebook Ads performance
         facebook_metrics = {
@@ -233,7 +233,7 @@ async def get_performance_metrics():
 async def get_revenue_analytics():
     """Get revenue and profit analytics"""
     try:
-        products = memory_storage.products
+        products = list(memory_storage.products.values())
         
         revenue_data = {
             'total_revenue': 0,

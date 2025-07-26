@@ -5,7 +5,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from api.routes import products, ai_tools, analytics, store
+from .api.routes import products, ai_tools, analytics, store
 
 # Configure logging
 logging.basicConfig(
