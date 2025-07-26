@@ -26,6 +26,8 @@ interface Product {
   category: string
   tags: string[]
   source_store: string
+  source_url?: string
+  image_url?: string
   facebook_ads: any[]
   tiktok_mentions: any[]
   trend_data: any
@@ -176,8 +178,21 @@ export default function ProductDetailModal({ product, isOpen, onClose, onSave }:
                   {/* Product Image and Basic Info */}
                   <div className="flex flex-col lg:flex-row gap-6">
                     <div className="lg:w-1/2">
-                      <div className="h-64 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg flex items-center justify-center">
-                        <div className="text-center">
+                      <div className="h-64 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg flex items-center justify-center overflow-hidden">
+                        {product.image_url ? (
+                          <img 
+                            src={product.image_url} 
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to placeholder if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              target.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`text-center ${product.image_url ? 'hidden' : ''}`}>
                           <div className="w-20 h-20 bg-white/80 rounded-full flex items-center justify-center mx-auto mb-4">
                             <SparklesIcon className="w-10 h-10 text-blue-600" />
                           </div>
