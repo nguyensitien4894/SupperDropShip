@@ -126,16 +126,36 @@ class GeneralCrawler:
         """Generate realistic AliExpress products when crawling fails"""
         products = []
         
-        # Real AliExpress product URLs that are known to work
-        real_aliexpress_urls = [
-            "https://www.aliexpress.com/wholesale?SearchText=wireless+earbuds&catId=0&initiative_id=SB_20240101000000",
-            "https://www.aliexpress.com/wholesale?SearchText=smart+watch&catId=0&initiative_id=SB_20240101000000",
-            "https://www.aliexpress.com/wholesale?SearchText=phone+case&catId=0&initiative_id=SB_20240101000000",
-            "https://www.aliexpress.com/wholesale?SearchText=kitchen+gadgets&catId=0&initiative_id=SB_20240101000000",
-            "https://www.aliexpress.com/wholesale?SearchText=fitness+tracker&catId=0&initiative_id=SB_20240101000000",
-            "https://www.aliexpress.com/wholesale?SearchText=led+lights&catId=0&initiative_id=SB_20240101000000",
-            "https://www.aliexpress.com/wholesale?SearchText=car+accessories&catId=0&initiative_id=SB_20240101000000",
-            "https://www.aliexpress.com/wholesale?SearchText=beauty+products&catId=0&initiative_id=SB_20240101000000"
+        # Category-specific AliExpress URLs that match the actual products
+        category_urls = {
+            'gadgets': [
+                "https://www.aliexpress.com/wholesale?SearchText=wireless+bluetooth+earbuds&catId=0&initiative_id=SB_20240101000000",
+                "https://www.aliexpress.com/wholesale?SearchText=portable+bluetooth+speaker&catId=0&initiative_id=SB_20240101000000",
+                "https://www.aliexpress.com/wholesale?SearchText=phone+case+protective+cover&catId=0&initiative_id=SB_20240101000000"
+            ],
+            'fitness': [
+                "https://www.aliexpress.com/wholesale?SearchText=smart+fitness+tracker+watch&catId=0&initiative_id=SB_20240101000000",
+                "https://www.aliexpress.com/wholesale?SearchText=fitness+tracker+band&catId=0&initiative_id=SB_20240101000000"
+            ],
+            'home': [
+                "https://www.aliexpress.com/wholesale?SearchText=led+strip+lights+rgb&catId=0&initiative_id=SB_20240101000000",
+                "https://www.aliexpress.com/wholesale?SearchText=kitchen+gadget+set&catId=0&initiative_id=SB_20240101000000"
+            ],
+            'automotive': [
+                "https://www.aliexpress.com/wholesale?SearchText=car+phone+mount+holder&catId=0&initiative_id=SB_20240101000000",
+                "https://www.aliexpress.com/wholesale?SearchText=car+accessories&catId=0&initiative_id=SB_20240101000000"
+            ],
+            'beauty': [
+                "https://www.aliexpress.com/wholesale?SearchText=beauty+face+mask+set&catId=0&initiative_id=SB_20240101000000",
+                "https://www.aliexpress.com/wholesale?SearchText=beauty+products+skincare&catId=0&initiative_id=SB_20240101000000"
+            ]
+        }
+        
+        # Fallback URLs for categories not in the above list
+        fallback_urls = [
+            "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000",
+            "https://www.aliexpress.com/wholesale?SearchText=best+seller&catId=0&initiative_id=SB_20240101000000",
+            "https://www.aliexpress.com/wholesale?SearchText=hot+products&catId=0&initiative_id=SB_20240101000000"
         ]
         
         product_templates = [
@@ -204,9 +224,9 @@ class GeneralCrawler:
                 'category': template['category'],
                 'tags': template['tags'],
                 'source_store': 'aliexpress.com',
-                'source_url': random.choice(real_aliexpress_urls),
+                'source_url': random.choice(category_urls.get(template['category'], [random.choice(fallback_urls)])),
                 'image_url': f"https://picsum.photos/400/300?random={random.randint(1, 1000)}",
-                'supplier_links': {'aliexpress': random.choice(real_aliexpress_urls)},
+                'supplier_links': {'aliexpress': random.choice(category_urls.get(template['category'], [random.choice(fallback_urls)]))},
                 'supplier_prices': {'aliexpress': round(price * 0.6, 2)},
                 'facebook_ads': self._generate_real_facebook_ads(template['title']),
                 'tiktok_mentions': self._generate_real_tiktok_mentions(template['title']),
@@ -307,6 +327,20 @@ class GeneralCrawler:
                         break
             
             # Generate realistic product data
+            category = self._determine_category_real(title)
+            
+            # Get category-specific URL
+            category_urls = {
+                'gadgets': "https://www.aliexpress.com/wholesale?SearchText=wireless+bluetooth+gadgets&catId=0&initiative_id=SB_20240101000000",
+                'fitness': "https://www.aliexpress.com/wholesale?SearchText=smart+fitness+tracker&catId=0&initiative_id=SB_20240101000000",
+                'home': "https://www.aliexpress.com/wholesale?SearchText=home+kitchen+gadgets&catId=0&initiative_id=SB_20240101000000",
+                'automotive': "https://www.aliexpress.com/wholesale?SearchText=car+accessories+phone+mount&catId=0&initiative_id=SB_20240101000000",
+                'beauty': "https://www.aliexpress.com/wholesale?SearchText=beauty+skincare+products&catId=0&initiative_id=SB_20240101000000"
+            }
+            
+            fallback_url = "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000"
+            category_url = category_urls.get(category, fallback_url)
+            
             product = {
                 'id': f"aliexpress_{random.randint(100000, 999999)}",
                 'title': title[:100],  # Limit title length
@@ -315,12 +349,12 @@ class GeneralCrawler:
                 'compare_price': round(price * random.uniform(1.3, 2.0), 2),
                 'currency': 'USD',
                 'score': self._calculate_real_score(price, title),
-                'category': self._determine_category_real(title),
+                'category': category,
                 'tags': self._extract_tags_real(title),
                 'source_store': 'aliexpress.com',
-                'source_url': product_url or "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000",
+                'source_url': product_url or category_url,
                 'image_url': image_url,
-                'supplier_links': {'aliexpress': product_url or "https://www.aliexpress.com/wholesale?SearchText=trending+products&catId=0&initiative_id=SB_20240101000000"},
+                'supplier_links': {'aliexpress': product_url or category_url},
                 'supplier_prices': {'aliexpress': round(price * 0.6, 2)},
                 'facebook_ads': self._generate_real_facebook_ads(title),
                 'tiktok_mentions': self._generate_real_tiktok_mentions(title),
