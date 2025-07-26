@@ -5,7 +5,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from .api.routes import products, ai_tools
+from api.routes import products, ai_tools, analytics, store
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +55,8 @@ app.add_middleware(
 # Include routers
 app.include_router(products.router, prefix="/api/products", tags=["products"])
 app.include_router(ai_tools.router, prefix="/api/ai", tags=["ai"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
+app.include_router(store.router, prefix="/api/store", tags=["store"])
 
 @app.get("/")
 async def root():

@@ -3,10 +3,10 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 from ..dependencies import get_current_user
-from ...database.memory_storage import memory_storage
-from ...database.models import Product, ProductsResponse, ProductResponse, CrawlRequest
-from ...scoring.engine import ScoringEngine
-from ...crawlers.crawler_manager import crawler_manager
+from database.memory_storage import memory_storage
+from database.models import Product, ProductsResponse, ProductResponse, CrawlRequest
+from scoring.engine import ScoringEngine
+from crawlers.crawler_manager import crawler_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
