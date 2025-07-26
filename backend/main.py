@@ -6,7 +6,6 @@ import os
 from contextlib import asynccontextmanager
 
 from .api.routes import products, ai_tools
-from .database.database import db
 
 # Configure logging
 logging.basicConfig(
@@ -20,23 +19,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
     logger.info("Starting Dropship Intelligence API...")
-    
-    # Connect to database
-    try:
-        await db.connect()
-        logger.info("Database connected successfully")
-    except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-        # In production, you might want to exit here
-        # import sys
-        # sys.exit(1)
+    logger.info("Using in-memory storage (MongoDB not available)")
     
     yield
     
     # Shutdown
     logger.info("Shutting down Dropship Intelligence API...")
-    await db.disconnect()
-    logger.info("Database disconnected")
 
 # Create FastAPI app
 app = FastAPI(
@@ -75,19 +63,15 @@ async def root():
         "message": "Dropship Intelligence API",
         "version": "1.0.0",
         "status": "running",
-        "database": "connected" if db.is_connected else "disconnected"
+        "database": "memory_storage"
     }
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     try:
-        # Check database connection
-        if not db.is_connected:
-            raise Exception("Database not connected")
-        
-        # Test database connection
-        await db.client.admin.command('ping')
+        # Check memory storage
+        # Memory storage is always available
         
         return {
             "status": "healthy",
@@ -103,7 +87,7 @@ async def api_status():
     """API status endpoint"""
     return {
         "api": "running",
-        "database": "connected" if db.is_connected else "disconnected",
+        "database": "memory_storage",
         "version": "1.0.0"
     }
 

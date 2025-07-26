@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
 import logging
 from ..dependencies import get_current_user
-from ...database.repository import product_repository
+from ...database.memory_storage import memory_storage
 from ...database.models import Product, ProductsResponse, ProductResponse, CrawlRequest
 from ...scoring.engine import ScoringEngine
 
@@ -31,8 +31,8 @@ async def get_products(
         # Calculate skip
         skip = (page - 1) * limit
         
-        # Get products from database
-        products = await product_repository.get_products(
+        # Get products from memory storage
+        products = await memory_storage.get_products(
             skip=skip,
             limit=limit,
             category=category,
@@ -58,7 +58,7 @@ async def get_products(
         if tag_list:
             filter_query["tags"] = {"$in": tag_list}
         
-        total = await product_repository.get_products_count(filter_query)
+        total = await memory_storage.get_products_count(filter_query)
         
         return ProductsResponse(
             success=True,
@@ -76,7 +76,7 @@ async def get_products(
 async def get_product(product_id: str):
     """Get a specific product by ID"""
     try:
-        product = await product_repository.get_product(product_id)
+        product = await memory_storage.get_product(product_id)
         
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -152,7 +152,7 @@ async def delete_product(product_id: str):
 async def get_categories():
     """Get all available categories"""
     try:
-        categories = await product_repository.get_categories()
+        categories = await memory_storage.get_categories()
         return {"success": True, "data": categories}
         
     except Exception as e:
@@ -163,7 +163,7 @@ async def get_categories():
 async def get_tags():
     """Get all available tags"""
     try:
-        tags = await product_repository.get_tags()
+        tags = await memory_storage.get_tags()
         return {"success": True, "data": tags}
         
     except Exception as e:
@@ -174,7 +174,7 @@ async def get_tags():
 async def get_stats():
     """Get product statistics"""
     try:
-        stats = await product_repository.get_stats()
+        stats = await memory_storage.get_stats()
         return {"success": True, "data": stats}
         
     except Exception as e:
@@ -226,7 +226,7 @@ async def advanced_search(request: CrawlRequest):
                 filter_query["price"] = {"$lte": request.max_price}
         
         # Get products
-        products = await product_repository.get_products(
+        products = await memory_storage.get_products(
             limit=request.limit,
             category=request.category.value if request.category else None,
             min_score=request.min_score,
