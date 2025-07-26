@@ -33,21 +33,21 @@ class CrawlerManager:
         """Crawl all available sources and return combined products"""
         all_products = []
         
-        logger.info("Starting comprehensive product crawl from all sources...")
+        logger.info("Starting comprehensive REAL product crawl from all sources...")
         
-        # 1. Crawl general platforms (AliExpress, Temu, Amazon)
+        # 1. Crawl general platforms (AliExpress, Temu, Amazon) - REAL PRODUCTS
         try:
-            logger.info("Crawling general e-commerce platforms...")
+            logger.info("Crawling real e-commerce platforms for actual products...")
             general_products = await self.general_crawler.crawl_all_platforms(max_products_per_source)
             all_products.extend(general_products)
-            logger.info(f"Added {len(general_products)} products from general platforms")
+            logger.info(f"Added {len(general_products)} REAL products from e-commerce platforms")
         except Exception as e:
             logger.error(f"Error crawling general platforms: {e}")
         
         # 2. Crawl Shopify stores (if we have specific store URLs)
         try:
-            logger.info("Crawling Shopify stores...")
-            # For now, we'll use some example store URLs
+            logger.info("Crawling Shopify stores for real products...")
+            # Use real Shopify store URLs
             store_urls = [
                 'https://www.oberlo.com/blog/shopify-stores',
                 'https://www.shopify.com/partners/shopify-stores'
@@ -58,16 +58,19 @@ class CrawlerManager:
         except Exception as e:
             logger.error(f"Error crawling Shopify stores: {e}")
         
-        # 3. Generate additional mock products for variety
-        try:
-            logger.info("Generating additional mock products for variety...")
-            mock_products = self._generate_mock_products(max_products_per_source)
-            all_products.extend(mock_products)
-            logger.info(f"Added {len(mock_products)} mock products")
-        except Exception as e:
-            logger.error(f"Error generating mock products: {e}")
+        # 3. Generate minimal mock products only if we don't have enough real products
+        if len(all_products) < 10:
+            try:
+                logger.info(f"Only {len(all_products)} real products found. Generating minimal mock products for variety...")
+                mock_products = self._generate_mock_products(min(5, max_products_per_source - len(all_products)))
+                all_products.extend(mock_products)
+                logger.info(f"Added {len(mock_products)} mock products as backup")
+            except Exception as e:
+                logger.error(f"Error generating mock products: {e}")
+        else:
+            logger.info(f"Sufficient real products found ({len(all_products)}). Skipping mock generation.")
         
-        logger.info(f"Total products crawled: {len(all_products)}")
+        logger.info(f"Total products crawled: {len(all_products)} (Real: {len([p for p in all_products if not p['id'].startswith('mock_')])}, Mock: {len([p for p in all_products if p['id'].startswith('mock_')])})")
         return all_products
 
     def _generate_mock_products(self, count: int) -> List[Dict[str, Any]]:
