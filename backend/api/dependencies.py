@@ -11,20 +11,12 @@ security = HTTPBearer()
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Get current user from JWT token
-    For now, this is a placeholder for authentication
+    TODO: Implement proper JWT token validation
     """
     try:
         # TODO: Implement proper JWT token validation
-        # For now, just return a mock user
+        # This is a placeholder for authentication - replace with real JWT validation
         token = credentials.credentials
-        
-        # Mock user for development
-        if token == "dev_token":
-            return {
-                "id": "user_1",
-                "email": "dev@example.com",
-                "role": "admin"
-            }
         
         # In production, validate JWT token here
         # decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -32,7 +24,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Authentication not implemented. Please configure JWT validation.",
             headers={"WWW-Authenticate": "Bearer"},
         )
         
