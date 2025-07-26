@@ -33,11 +33,15 @@ interface ProductCardProps {
   product: Product
   onViewDetails: (product: Product) => void
   onSave: (product: Product) => void
+  onShare?: () => void
+  isSaved?: boolean
 }
 
-export default function ProductCard({ product, onViewDetails, onSave }: ProductCardProps) {
-  const [isSaved, setIsSaved] = useState(false)
+export default function ProductCard({ product, onViewDetails, onSave, onShare, isSaved: externalIsSaved }: ProductCardProps) {
+  const [internalIsSaved, setInternalIsSaved] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  
+  const isSaved = externalIsSaved !== undefined ? externalIsSaved : internalIsSaved
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600 bg-green-100 border-green-200'
@@ -59,7 +63,9 @@ export default function ProductCard({ product, onViewDetails, onSave }: ProductC
   }
 
   const handleSave = () => {
-    setIsSaved(!isSaved)
+    if (externalIsSaved === undefined) {
+      setInternalIsSaved(!internalIsSaved)
+    }
     onSave(product)
   }
 
@@ -195,7 +201,10 @@ export default function ProductCard({ product, onViewDetails, onSave }: ProductC
             <EyeIcon className="w-4 h-4" />
             <span>View Details</span>
           </button>
-          <button className="p-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={onShare}
+            className="p-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
             <ShareIcon className="w-4 h-4 text-gray-600" />
           </button>
         </div>

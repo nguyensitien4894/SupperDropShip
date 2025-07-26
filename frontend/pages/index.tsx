@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   MagnifyingGlassIcon, 
   FunnelIcon,
@@ -11,84 +11,124 @@ import {
   HeartIcon,
   ShareIcon,
   StarIcon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
-import axios from 'axios'
 import Layout from '../components/Layout'
 import ProductCard from '../components/ProductCard'
-
-interface Product {
-  id: string
-  title: string
-  description: string
-  price: number
-  compare_price: number
-  score: number
-  category: string
-  tags: string[]
-  source_store: string
-  facebook_ads: any[]
-  tiktok_mentions: any[]
-  trend_data: any
-  supplier_links?: any
-  supplier_prices?: any
-}
+import ProductDetailModal from '../components/ProductDetailModal'
+import FilterPanel from '../components/FilterPanel'
+import { useProducts, Product } from '../hooks/useProducts'
+import { useNotifications, notificationUtils } from '../components/NotificationSystem'
+import { useSavedProducts } from '../hooks/useLocalStorage'
 
 export default function Dashboard() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [minScore, setMinScore] = useState(0)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const {
+    filteredProducts,
+    loading,
+    error,
+    filterOptions,
+    sortBy,
+    viewMode,
+    stats,
+    setFilterOptions,
+    setSortBy,
+    setViewMode,
+    toggleSavedProduct,
+    refreshProducts,
+    clearFilters
+  } = useProducts()
+
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [showFilters, setShowFilters] = useState(false)
-  const [savedProducts, setSavedProducts] = useState<string[]>([])
-
-  useEffect(() => {
-    fetchProducts()
-  }, [])
-
-  const fetchProducts = async () => {
-    try {
-      const response = await axios.get('http://localhost:8000/api/products/')
-      setProducts(response.data.data || [])
-    } catch (error) {
-      console.error('Error fetching products:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
-    const matchesScore = product.score >= minScore
-    return matchesSearch && matchesCategory && matchesScore
-  })
+  const [savedProducts, setSavedProducts] = useSavedProducts()
+  const { addNotification } = useNotifications()
 
   const categories = ['all', 'gadgets', 'home', 'fashion', 'beauty', 'fitness', 'pets', 'kids', 'automotive', 'garden', 'sports']
+  
+  // Get unique tags from all products
+  const availableTags = Array.from(new Set(
+    filteredProducts.flatMap(product => product.tags)
+  )).sort()
 
   const handleViewDetails = (product: Product) => {
-    // TODO: Implement product detail modal/page
-    console.log('View details:', product)
+    setSelectedProduct(product)
   }
 
   const handleSaveProduct = (product: Product) => {
-    if (savedProducts.includes(product.id)) {
-      setSavedProducts(savedProducts.filter(id => id !== product.id))
+    toggleSavedProduct(product.id)
+    const isSaved = savedProducts.includes(product.id)
+    
+    if (isSaved) {
+      setSavedProducts(prev => prev.filter(id => id !== product.id))
+      addNotification(notificationUtils.success(
+        'Product Removed',
+        `${product.title} has been removed from your saved products.`
+      ))
     } else {
-      setSavedProducts([...savedProducts, product.id])
+      setSavedProducts(prev => [...prev, product.id])
+      addNotification(notificationUtils.success(
+        'Product Saved',
+        `${product.title} has been added to your saved products.`
+      ))
     }
   }
 
-  const stats = {
-    totalProducts: products.length,
-    highScoreProducts: products.filter(p => p.score >= 80).length,
-    averageScore: products.length > 0 ? (products.reduce((sum, p) => sum + p.score, 0) / products.length).toFixed(1) : '0',
-    totalFacebookAds: products.reduce((sum, p) => sum + p.facebook_ads.length, 0),
-    totalTikTokMentions: products.reduce((sum, p) => sum + p.tiktok_mentions.length, 0)
+  const handleRefresh = async () => {
+    try {
+      await refreshProducts()
+      addNotification(notificationUtils.success(
+        'Data Refreshed',
+        'Product data has been updated successfully.'
+      ))
+    } catch (err) {
+      addNotification(notificationUtils.error(
+        'Refresh Failed',
+        'Failed to refresh product data. Please try again.'
+      ))
+    }
+  }
+
+  const handleShare = async (product: Product) => {
+    try {
+      await navigator.share({
+        title: product.title,
+        text: product.description,
+        url: window.location.href
+      })
+      addNotification(notificationUtils.success(
+        'Shared Successfully',
+        'Product has been shared successfully.'
+      ))
+    } catch (err) {
+      // Fallback to clipboard
+      navigator.clipboard.writeText(`${product.title} - ${product.description}`)
+      addNotification(notificationUtils.info(
+        'Link Copied',
+        'Product information has been copied to clipboard.'
+      ))
+    }
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="text-center py-12">
+          <div className="mx-auto h-24 w-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <XMarkIcon className="h-12 w-12 text-red-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
+          <p className="text-gray-500 mb-6">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </Layout>
+    )
   }
 
   return (
@@ -101,6 +141,13 @@ export default function Dashboard() {
             <p className="mt-2 text-gray-600">Discover winning dropshipping products with AI-powered insights</p>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              <ArrowPathIcon className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
+            </button>
             <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -193,39 +240,25 @@ export default function Dashboard() {
             <input
               type="text"
               placeholder="Search products by title or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filterOptions.searchTerm}
+              onChange={(e) => setFilterOptions({ searchTerm: e.target.value })}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
 
-          {/* Category Filter */}
+          {/* Sort */}
           <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           >
-            {categories.map(category => (
-              <option key={category} value={category}>
-                {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
-              </option>
-            ))}
+            <option value="score">Sort by Score</option>
+            <option value="price">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
+            <option value="trend">Trend Score</option>
+            <option value="newest">Newest First</option>
+            <option value="name">Name A-Z</option>
           </select>
-
-          {/* Min Score Filter */}
-          <div className="flex items-center space-x-3">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              Min Score: {minScore}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={minScore}
-              onChange={(e) => setMinScore(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-            />
-          </div>
 
           {/* Results Count */}
           <div className="flex items-center justify-between lg:justify-end">
@@ -235,6 +268,17 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Filter Panel */}
+      <FilterPanel
+        filterOptions={filterOptions}
+        onFilterChange={setFilterOptions}
+        onClearFilters={clearFilters}
+        categories={categories}
+        availableTags={availableTags}
+        isOpen={showFilters}
+        onToggle={() => setShowFilters(!showFilters)}
+      />
 
       {/* Products Grid/List */}
       {loading ? (
@@ -252,6 +296,8 @@ export default function Dashboard() {
               product={product}
               onViewDetails={handleViewDetails}
               onSave={handleSaveProduct}
+              onShare={() => handleShare(product)}
+              isSaved={savedProducts.includes(product.id)}
             />
           ))}
         </div>
@@ -268,11 +314,7 @@ export default function Dashboard() {
             Try adjusting your search criteria or filters to find more products.
           </p>
           <button
-            onClick={() => {
-              setSearchTerm('')
-              setSelectedCategory('all')
-              setMinScore(0)
-            }}
+            onClick={clearFilters}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Clear Filters
@@ -280,57 +322,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Mobile Filters Overlay */}
-      {showFilters && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setShowFilters(false)} />
-          <div className="fixed inset-y-0 right-0 flex w-80 flex-col bg-white shadow-xl">
-            <div className="flex h-16 items-center justify-between px-4 border-b">
-              <h2 className="text-lg font-medium text-gray-900">Filters</h2>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {/* Mobile filter content */}
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    {categories.map(category => (
-                      <option key={category} value={category}>
-                        {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Score: {minScore}
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={minScore}
-                    onChange={(e) => setMinScore(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          isOpen={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onSave={handleSaveProduct}
+        />
       )}
     </Layout>
   )
