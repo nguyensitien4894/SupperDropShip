@@ -11,7 +11,9 @@ import {
   HeartIcon,
   ShareIcon,
   StarIcon,
-  XMarkIcon
+  XMarkIcon,
+  AdjustmentsHorizontalIcon,
+  ArrowsUpDownIcon
 } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 import axios from 'axios'
@@ -35,12 +37,16 @@ interface Product {
   supplier_prices?: any
 }
 
-export default function Dashboard() {
+type SortOption = 'score' | 'price' | 'price_high' | 'trend' | 'newest'
+
+export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [minScore, setMinScore] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(1000)
+  const [sortBy, setSortBy] = useState<SortOption>('score')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [savedProducts, setSavedProducts] = useState<string[]>([])
@@ -60,13 +66,31 @@ export default function Dashboard() {
     }
   }
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
-    const matchesScore = product.score >= minScore
-    return matchesSearch && matchesCategory && matchesScore
-  })
+  const filteredAndSortedProducts = products
+    .filter(product => {
+      const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
+      const matchesScore = product.score >= minScore
+      const matchesPrice = product.price <= maxPrice
+      return matchesSearch && matchesCategory && matchesScore && matchesPrice
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'score':
+          return b.score - a.score
+        case 'price':
+          return a.price - b.price
+        case 'price_high':
+          return b.price - a.price
+        case 'trend':
+          return (b.trend_data?.trend_score || 0) - (a.trend_data?.trend_score || 0)
+        case 'newest':
+          return new Date(b.id || 0).getTime() - new Date(a.id || 0).getTime()
+        default:
+          return 0
+      }
+    })
 
   const categories = ['all', 'gadgets', 'home', 'fashion', 'beauty', 'fitness', 'pets', 'kids', 'automotive', 'garden', 'sports']
 
@@ -83,12 +107,12 @@ export default function Dashboard() {
     }
   }
 
-  const stats = {
-    totalProducts: products.length,
-    highScoreProducts: products.filter(p => p.score >= 80).length,
-    averageScore: products.length > 0 ? (products.reduce((sum, p) => sum + p.score, 0) / products.length).toFixed(1) : '0',
-    totalFacebookAds: products.reduce((sum, p) => sum + p.facebook_ads.length, 0),
-    totalTikTokMentions: products.reduce((sum, p) => sum + p.tiktok_mentions.length, 0)
+  const clearFilters = () => {
+    setSearchTerm('')
+    setSelectedCategory('all')
+    setMinScore(0)
+    setMaxPrice(1000)
+    setSortBy('score')
   }
 
   return (
@@ -97,8 +121,8 @@ export default function Dashboard() {
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="mt-2 text-gray-600">Discover winning dropshipping products with AI-powered insights</p>
+            <h1 className="text-3xl font-bold text-gray-900">Products</h1>
+            <p className="mt-2 text-gray-600">Browse and discover winning dropshipping products</p>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-3">
             <button
@@ -121,69 +145,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <SparklesIcon className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Products</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalProducts}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <FireIcon className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">High Score</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.highScoreProducts}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <ArrowTrendingUpIcon className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Avg Score</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.averageScore}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <EyeIcon className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Facebook Ads</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalFacebookAds}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-pink-100 rounded-lg">
-              <ShareIcon className="w-6 h-6 text-pink-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">TikTok Mentions</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalTikTokMentions}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Search and Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-4">
@@ -199,23 +160,61 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Category Filter */}
+          {/* Sort */}
           <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           >
-            {categories.map(category => (
-              <option key={category} value={category}>
-                {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
-              </option>
-            ))}
+            <option value="score">Sort by Score</option>
+            <option value="price">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
+            <option value="trend">Trend Score</option>
+            <option value="newest">Newest First</option>
           </select>
 
+          {/* Results Count */}
+          <div className="flex items-center justify-between lg:justify-end">
+            <span className="text-sm text-gray-500">
+              {filteredAndSortedProducts.length} products found
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Advanced Filters</h3>
+          <button
+            onClick={clearFilters}
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Clear All
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>
+                  {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Min Score Filter */}
-          <div className="flex items-center space-x-3">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              Min Score: {minScore}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Minimum Score: {minScore}
             </label>
             <input
               type="range"
@@ -223,15 +222,24 @@ export default function Dashboard() {
               max="100"
               value={minScore}
               onChange={(e) => setMinScore(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
             />
           </div>
 
-          {/* Results Count */}
-          <div className="flex items-center justify-between lg:justify-end">
-            <span className="text-sm text-gray-500">
-              {filteredProducts.length} products found
-            </span>
+          {/* Max Price Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Max Price: ${maxPrice}
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1000"
+              step="10"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+            />
           </div>
         </div>
       </div>
@@ -246,7 +254,7 @@ export default function Dashboard() {
           ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           : "space-y-4"
         }>
-          {filteredProducts.map((product) => (
+          {filteredAndSortedProducts.map((product) => (
             <ProductCard
               key={product.id}
               product={product}
@@ -258,7 +266,7 @@ export default function Dashboard() {
       )}
 
       {/* Empty State */}
-      {!loading && filteredProducts.length === 0 && (
+      {!loading && filteredAndSortedProducts.length === 0 && (
         <div className="text-center py-12">
           <div className="mx-auto h-24 w-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <SparklesIcon className="h-12 w-12 text-gray-400" />
@@ -268,11 +276,7 @@ export default function Dashboard() {
             Try adjusting your search criteria or filters to find more products.
           </p>
           <button
-            onClick={() => {
-              setSearchTerm('')
-              setSelectedCategory('all')
-              setMinScore(0)
-            }}
+            onClick={clearFilters}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Clear Filters
@@ -295,12 +299,9 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
-              {/* Mobile filter content */}
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
@@ -326,6 +327,36 @@ export default function Dashboard() {
                     onChange={(e) => setMinScore(parseInt(e.target.value))}
                     className="w-full"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Price: ${maxPrice}
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1000"
+                    step="10"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="score">Sort by Score</option>
+                    <option value="price">Price: Low to High</option>
+                    <option value="price_high">Price: High to Low</option>
+                    <option value="trend">Trend Score</option>
+                    <option value="newest">Newest First</option>
+                  </select>
                 </div>
               </div>
             </div>
