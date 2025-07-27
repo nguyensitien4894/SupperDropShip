@@ -6,7 +6,6 @@ import {
   CurrencyDollarIcon,
   HeartIcon,
   EyeIcon,
-  ShareIcon,
   StarIcon,
   SparklesIcon,
   ShoppingBagIcon
@@ -63,99 +62,6 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
     const supplierPrice = Math.min(...Object.values(product.supplier_prices) as number[])
     const margin = ((product.price - supplierPrice) / product.price) * 100
     return margin.toFixed(1)
-  }
-
-  const getStoreInfo = () => {
-    const storeInfo = []
-    
-    // Source store
-    if (product.source_store) {
-      storeInfo.push({
-        label: 'Source Store',
-        value: product.source_store,
-        type: 'store'
-      })
-    }
-    
-    // Source URL
-    if (product.source_url) {
-      storeInfo.push({
-        label: 'Product URL',
-        value: product.source_url,
-        type: 'url'
-      })
-    }
-    
-    // Supplier links
-    if (product.supplier_links && Object.keys(product.supplier_links).length > 0) {
-      Object.entries(product.supplier_links).forEach(([platform, url]) => {
-        storeInfo.push({
-          label: `${platform.charAt(0).toUpperCase() + platform.slice(1)}`,
-          value: url,
-          type: 'supplier'
-        })
-      })
-    }
-    
-    // Supplier prices
-    if (product.supplier_prices && Object.keys(product.supplier_prices).length > 0) {
-      Object.entries(product.supplier_prices).forEach(([platform, price]) => {
-        storeInfo.push({
-          label: `${platform.charAt(0).toUpperCase() + platform.slice(1)} Price`,
-          value: `$${price}`,
-          type: 'price'
-        })
-      })
-    }
-    
-    return storeInfo
-  }
-
-  const getStoreIcon = (storeName: string) => {
-    const store = storeName.toLowerCase()
-    if (store.includes('aliexpress')) {
-      return (
-        <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center">
-          <span className="text-white text-xs font-bold">A</span>
-        </div>
-      )
-    }
-    if (store.includes('amazon')) {
-      return (
-        <div className="w-6 h-6 bg-yellow-500 rounded flex items-center justify-center">
-          <span className="text-white text-xs font-bold">A</span>
-        </div>
-      )
-    }
-    if (store.includes('shopify') || store.includes('allbirds') || store.includes('glossier') || store.includes('awaytravel') || store.includes('kyliecosmetics')) {
-      return (
-        <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
-          <span className="text-white text-xs font-bold">S</span>
-        </div>
-      )
-    }
-    if (store.includes('temu')) {
-      return (
-        <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center">
-          <span className="text-white text-xs font-bold">T</span>
-        </div>
-      )
-    }
-    // Default store icon
-    return (
-      <div className="w-6 h-6 bg-gray-500 rounded flex items-center justify-center">
-        <span className="text-white text-xs font-bold">S</span>
-      </div>
-    )
-  }
-
-  const getStoreName = (storeName: string) => {
-    const store = storeName.toLowerCase()
-    if (store.includes('aliexpress')) return 'AliExpress'
-    if (store.includes('amazon')) return 'Amazon'
-    if (store.includes('shopify') || store.includes('allbirds') || store.includes('glossier') || store.includes('awaytravel') || store.includes('kyliecosmetics')) return 'Shopify'
-    if (store.includes('temu')) return 'Temu'
-    return storeName
   }
 
   const handleSave = () => {
@@ -255,25 +161,8 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
           </div>
         </div>
 
-        {/* Store Information */}
-        <div className="mt-4">
-          <h4 className="text-sm font-semibold text-gray-800 mb-2">Store Information</h4>
-          <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-            {getStoreInfo().map((item, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                {item.type === 'store' && getStoreIcon(item.value)}
-                {item.type === 'url' && <ShoppingBagIcon className="w-4 h-4 text-blue-500" />}
-                {item.type === 'supplier' && <HeartIcon className="w-4 h-4 text-purple-500" />}
-                {item.type === 'price' && <CurrencyDollarIcon className="w-4 h-4 text-green-500" />}
-                <span>{item.label}:</span>
-                <span className="font-medium">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+        <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
             <span className="text-gray-500">Facebook Ads:</span>
@@ -283,14 +172,6 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
             <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
             <span className="text-gray-500">TikTok:</span>
             <span className="font-medium">{product.tiktok_mentions.length}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-gray-500">Store:</span>
-            <div className="flex items-center space-x-1">
-              {getStoreIcon(product.source_store)}
-              <span className="font-medium text-sm">{getStoreName(product.source_store)}</span>
-            </div>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
@@ -328,21 +209,6 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
           >
             <EyeIcon className="w-4 h-4" />
             <span>View Details</span>
-          </button>
-          {product.source_url && (
-            <button 
-              onClick={() => window.open(product.source_url, '_blank')}
-              className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-1"
-            >
-              <ShoppingBagIcon className="w-4 h-4" />
-              <span>View Store</span>
-            </button>
-          )}
-          <button 
-            onClick={onShare}
-            className="p-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            <ShareIcon className="w-4 h-4 text-gray-600" />
           </button>
         </div>
       </div>
