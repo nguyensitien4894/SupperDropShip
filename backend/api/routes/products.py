@@ -25,6 +25,7 @@ async def get_products(
     max_price: Optional[float] = Query(None, ge=0, description="Maximum price"),
     search: Optional[str] = Query(None, description="Search term"),
     tags: Optional[str] = Query(None, description="Comma-separated tags"),
+    store: Optional[str] = Query(None, description="Filter by store"),
     sort_by: str = Query("score", description="Sort field"),
     sort_order: int = Query(-1, description="Sort order (-1 for desc, 1 for asc)")
 ):
@@ -47,6 +48,7 @@ async def get_products(
             max_price=max_price,
             search_term=search,
             tags=tag_list,
+            store=store,
             sort_by=sort_by,
             sort_order=sort_order
         )
@@ -64,6 +66,8 @@ async def get_products(
                 filter_query["price"] = {"$lte": max_price}
         if tag_list:
             filter_query["tags"] = {"$in": tag_list}
+        if store and store != "all":
+            filter_query["source_store"] = store
         
         total = await memory_storage.get_products_count(filter_query)
         

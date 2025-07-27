@@ -172,6 +172,7 @@ class MemoryStorage:
         max_price: Optional[float] = None,
         search_term: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        store: Optional[str] = None,
         sort_by: str = "score",
         sort_order: int = -1
     ) -> List[Product]:
@@ -201,6 +202,12 @@ class MemoryStorage:
                 filtered_products = [
                     p for p in filtered_products 
                     if any(tag in p.get('tags', []) for tag in tags)
+                ]
+                
+            if store and store != "all":
+                filtered_products = [
+                    p for p in filtered_products 
+                    if p.get('source_store') == store
                 ]
             
             # Sort products

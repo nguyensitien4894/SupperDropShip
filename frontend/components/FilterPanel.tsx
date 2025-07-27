@@ -13,6 +13,7 @@ interface FilterPanelProps {
   onClearFilters: () => void
   categories: string[]
   availableTags: string[]
+  availableStores: string[]
   isOpen: boolean
   onToggle: () => void
 }
@@ -23,6 +24,7 @@ export default function FilterPanel({
   onClearFilters,
   categories,
   availableTags,
+  availableStores,
   isOpen,
   onToggle
 }: FilterPanelProps) {
@@ -38,7 +40,8 @@ export default function FilterPanel({
       category: 'all',
       minScore: 0,
       maxPrice: 1000,
-      tags: []
+      tags: [],
+      store: 'all'
     }
     setLocalFilters(resetFilters)
     onClearFilters()
@@ -131,6 +134,7 @@ export default function FilterPanel({
                 setLocalFilters={setLocalFilters}
                 categories={categories}
                 availableTags={availableTags}
+                availableStores={availableStores}
                 handleTagToggle={handleTagToggle}
                 handleApplyFilters={handleApplyFilters}
                 handleReset={handleReset}
@@ -161,6 +165,7 @@ export default function FilterPanel({
                 setLocalFilters={setLocalFilters}
                 categories={categories}
                 availableTags={availableTags}
+                availableStores={availableStores}
                 handleTagToggle={handleTagToggle}
                 handleApplyFilters={handleApplyFilters}
                 handleReset={handleReset}
@@ -180,6 +185,7 @@ interface FilterContentProps {
   setLocalFilters: (filters: FilterOptions) => void
   categories: string[]
   availableTags: string[]
+  availableStores: string[]
   handleTagToggle: (tag: string) => void
   handleApplyFilters: () => void
   handleReset: () => void
@@ -192,6 +198,7 @@ function FilterContent({
   setLocalFilters,
   categories,
   availableTags,
+  availableStores,
   handleTagToggle,
   handleApplyFilters,
   handleReset,
@@ -227,6 +234,23 @@ function FilterContent({
           {categories.map(category => (
             <option key={category} value={category}>
               {category.charAt(0).toUpperCase() + category.slice(1)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Store */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Store</label>
+        <select
+          value={localFilters.store}
+          onChange={(e) => setLocalFilters({ ...localFilters, store: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="all">All Stores</option>
+          {availableStores.map(store => (
+            <option key={store} value={store}>
+              {store.replace('www.', '').replace('.com', '')}
             </option>
           ))}
         </select>

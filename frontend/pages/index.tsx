@@ -53,6 +53,11 @@ export default function Dashboard() {
     filteredProducts.flatMap(product => product.tags)
   )).sort()
 
+  // Get unique stores from all products
+  const availableStores = Array.from(new Set(
+    filteredProducts.map(product => product.source_store)
+  )).sort()
+
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product)
   }
@@ -316,6 +321,7 @@ export default function Dashboard() {
         onClearFilters={clearFilters}
         categories={categories}
         availableTags={availableTags}
+        availableStores={availableStores}
         isOpen={showFilters}
         onToggle={() => setShowFilters(!showFilters)}
       />

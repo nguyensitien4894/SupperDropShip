@@ -28,6 +28,7 @@ export interface FilterOptions {
   minScore: number
   maxPrice: number
   tags: string[]
+  store: string
 }
 
 export interface UseProductsReturn {
@@ -64,7 +65,8 @@ export function useProducts(): UseProductsReturn {
     category: 'all',
     minScore: 0,
     maxPrice: 1000,
-    tags: []
+    tags: [],
+    store: 'all'
   })
   const [sortBy, setSortBy] = useState<SortOption>('score')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -82,6 +84,7 @@ export function useProducts(): UseProductsReturn {
       if (filterOptions.minScore > 0) params.append('min_score', filterOptions.minScore.toString())
       if (filterOptions.maxPrice < 1000) params.append('max_price', filterOptions.maxPrice.toString())
       if (filterOptions.tags.length > 0) params.append('tags', filterOptions.tags.join(','))
+      if (filterOptions.store !== 'all') params.append('store', filterOptions.store)
       params.append('sort_by', sortBy)
       params.append('sort_order', '-1')
       params.append('page', '1')
@@ -124,7 +127,13 @@ export function useProducts(): UseProductsReturn {
     fetchProducts()
   }, [fetchProducts])
 
-  const filteredProducts = products
+  const filteredProducts = products.filter(product => {
+    // Store filter
+    if (filterOptions.store !== 'all' && product.source_store !== filterOptions.store) {
+      return false
+    }
+    return true
+  })
 
   const stats = {
     totalProducts: products.length,
@@ -153,7 +162,8 @@ export function useProducts(): UseProductsReturn {
       category: 'all',
       minScore: 0,
       maxPrice: 1000,
-      tags: []
+      tags: [],
+      store: 'all'
     })
     setSortBy('score')
   }, [])
