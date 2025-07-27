@@ -161,46 +161,6 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            <span className="text-gray-500">Facebook Ads:</span>
-            <span className="font-medium">{product.facebook_ads.length}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
-            <span className="text-gray-500">TikTok:</span>
-            <span className="font-medium">{product.tiktok_mentions.length}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-            <span className="text-gray-500">Trend:</span>
-            <span className="font-medium">{product.trend_data?.trend_score || 'N/A'}</span>
-          </div>
-        </div>
-
-        {/* Tags */}
-        {product.tags.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-1">
-              {product.tags.slice(0, 3).map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
-              {product.tags.length > 3 && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                  +{product.tags.length - 3}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Action Buttons */}
         <div className="flex space-x-2">
           <button 
