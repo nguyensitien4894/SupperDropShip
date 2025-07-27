@@ -19,6 +19,12 @@ class SupplierPlatform(str, Enum):
     ALIEXPRESS = "aliexpress"
     TEMU = "temu"
     SHOP1688 = "1688"
+    ETSY = "etsy"
+    ALIBABA = "alibaba"
+    TAOBAO = "taobao"
+    WISH = "wish"
+    EBAY = "ebay"
+    AMAZON = "amazon"
 
 class Product(BaseModel):
     id: str = Field(..., description="Unique product identifier")

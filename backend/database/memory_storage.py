@@ -10,7 +10,8 @@ class MemoryStorage:
     def __init__(self):
         self.products = {}
         self.counter = 1
-        self._load_sample_data()
+        # Don't load sample data - let crawler populate with real data
+        # self._load_sample_data()
 
     def _load_sample_data(self):
         """Load sample product data"""

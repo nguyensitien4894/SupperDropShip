@@ -60,13 +60,31 @@ export default function Dashboard() {
   
   const availableStores = allStores.filter(store => {
     const storeLower = store.toLowerCase()
-    // Only show amazon, aliexpress, shopify - exclude specific Shopify store URLs
+    // Show popular platforms: amazon, aliexpress, shopify, etsy, alibaba, taobao, temu, wish, ebay
     return storeLower === 'amazon.com' || 
            storeLower === 'aliexpress' || 
            storeLower === 'shopify' ||
            storeLower === 'amazon' ||
            storeLower === 'aliexpress.com' ||
-           storeLower === 'shopify.com'
+           storeLower === 'shopify.com' ||
+           storeLower === 'etsy' ||
+           storeLower === 'etsy.com' ||
+           storeLower === 'alibaba' ||
+           storeLower === 'alibaba.com' ||
+           storeLower === 'taobao' ||
+           storeLower === 'taobao.com' ||
+           storeLower === 'temu' ||
+           storeLower === 'temu.com' ||
+           storeLower === 'wish' ||
+           storeLower === 'wish.com' ||
+           storeLower === 'ebay' ||
+           storeLower === 'ebay.com' ||
+           storeLower === 'walmart' ||
+           storeLower === 'walmart.com' ||
+           storeLower === 'target' ||
+           storeLower === 'target.com' ||
+           storeLower === 'bestbuy' ||
+           storeLower === 'bestbuy.com'
   })
 
   const handleViewDetails = (product: Product) => {

@@ -93,30 +93,33 @@ class CrawlerManager:
         ]
         
         # Initialize progress tracking
-        total_sources = 4  # AliExpress, Temu, Amazon, Shopify
+        total_sources = 8  # AliExpress, Temu, Amazon, Shopify, Etsy, Alibaba, Taobao, Wish, eBay
         self.progress.start(total_sources)
         
-        # Create parallel tasks
-        tasks = [
-            self._crawl_aliexpress_optimized(max_products_per_source),
-            self._crawl_temu_optimized(max_products_per_source),
-            self._crawl_amazon_optimized(max_products_per_source),
-            self._crawl_shopify_optimized(store_urls, max_products_per_source)
-        ]
-        
-        # Execute all tasks in parallel
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Combine results
+        # Use sequential approach for debugging
         all_products = []
-        for i, result in enumerate(results):
-            if isinstance(result, list):
-                all_products.extend(result)
-                self.progress.update(source_completed=True, products_found=len(result))
-                logger.info(f"Source {i+1} completed with {len(result)} products")
-            else:
-                logger.error(f"Source {i+1} failed: {result}")
-                self.progress.update(source_completed=True)
+        
+        # Crawl general platforms first
+        try:
+            logger.info("Starting general platforms crawl...")
+            general_products = await self._crawl_general_platforms_optimized(max_products_per_source)
+            all_products.extend(general_products)
+            logger.info(f"General platforms completed with {len(general_products)} products")
+            self.progress.update(source_completed=True, products_found=len(general_products))
+        except Exception as e:
+            logger.error(f"General platforms failed: {e}")
+            self.progress.update(source_completed=True)
+        
+        # Crawl Shopify stores
+        try:
+            logger.info("Starting Shopify crawl...")
+            shopify_products = await self._crawl_shopify_optimized(store_urls, max_products_per_source)
+            all_products.extend(shopify_products)
+            logger.info(f"Shopify completed with {len(shopify_products)} products")
+            self.progress.update(source_completed=True, products_found=len(shopify_products))
+        except Exception as e:
+            logger.error(f"Shopify failed: {e}")
+            self.progress.update(source_completed=True)
         
         self.progress.finish()
         logger.info(f"Parallel crawl completed: {len(all_products)} total products")
@@ -149,6 +152,23 @@ class CrawlerManager:
             logger.error(f"Error in optimized Amazon crawl: {e}")
             return []
 
+    async def _crawl_general_platforms_optimized(self, max_products_per_platform: int) -> List[Dict[str, Any]]:
+        """Optimized crawling for all general platforms (AliExpress, Temu, Amazon, Etsy, Alibaba, Taobao, Wish, eBay)"""
+        try:
+            await self.rate_limiter.wait()
+            logger.info("Starting general platforms crawl...")
+            products = await self.general_crawler.crawl_all_platforms(max_products_per_platform)
+            logger.info(f"General platforms crawl completed: {len(products)} products")
+            
+            # Log the stores found
+            stores = set(p.get('source_store', 'unknown') for p in products)
+            logger.info(f"Stores found: {stores}")
+            
+            return products
+        except Exception as e:
+            logger.error(f"Error in optimized general platforms crawl: {e}")
+            return []
+
     async def _crawl_shopify_optimized(self, store_urls: List[str], max_products_per_store: int) -> List[Dict[str, Any]]:
         """Optimized Shopify crawling with rate limiting"""
         try:
@@ -156,6 +176,51 @@ class CrawlerManager:
             return await self.shopify_crawler.crawl_multiple_stores(store_urls, max_products_per_store)
         except Exception as e:
             logger.error(f"Error in optimized Shopify crawl: {e}")
+            return []
+
+    async def _crawl_etsy_optimized(self, max_products: int) -> List[Dict[str, Any]]:
+        """Optimized Etsy crawling with rate limiting"""
+        try:
+            await self.rate_limiter.wait()
+            return await self.general_crawler.crawl_etsy(max_products)
+        except Exception as e:
+            logger.error(f"Error in optimized Etsy crawl: {e}")
+            return []
+
+    async def _crawl_alibaba_optimized(self, max_products: int) -> List[Dict[str, Any]]:
+        """Optimized Alibaba crawling with rate limiting"""
+        try:
+            await self.rate_limiter.wait()
+            return await self.general_crawler.crawl_alibaba(max_products)
+        except Exception as e:
+            logger.error(f"Error in optimized Alibaba crawl: {e}")
+            return []
+
+    async def _crawl_taobao_optimized(self, max_products: int) -> List[Dict[str, Any]]:
+        """Optimized Taobao crawling with rate limiting"""
+        try:
+            await self.rate_limiter.wait()
+            return await self.general_crawler.crawl_taobao(max_products)
+        except Exception as e:
+            logger.error(f"Error in optimized Taobao crawl: {e}")
+            return []
+
+    async def _crawl_wish_optimized(self, max_products: int) -> List[Dict[str, Any]]:
+        """Optimized Wish crawling with rate limiting"""
+        try:
+            await self.rate_limiter.wait()
+            return await self.general_crawler.crawl_wish(max_products)
+        except Exception as e:
+            logger.error(f"Error in optimized Wish crawl: {e}")
+            return []
+
+    async def _crawl_ebay_optimized(self, max_products: int) -> List[Dict[str, Any]]:
+        """Optimized eBay crawling with rate limiting"""
+        try:
+            await self.rate_limiter.wait()
+            return await self.general_crawler.crawl_ebay(max_products)
+        except Exception as e:
+            logger.error(f"Error in optimized eBay crawl: {e}")
             return []
 
     async def crawl_all_sources(self, max_products_per_source: int = 30) -> List[Dict[str, Any]]:
