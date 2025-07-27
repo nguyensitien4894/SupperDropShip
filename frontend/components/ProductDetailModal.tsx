@@ -1,18 +1,17 @@
 import { useState } from 'react'
 import { 
-  XMarkIcon,
-  FireIcon,
+  XMarkIcon, 
+  HeartIcon, 
+  ShareIcon, 
+  StarIcon,
+  CurrencyDollarIcon,
+  ShoppingBagIcon,
   ArrowTrendingUpIcon,
   ChartBarIcon,
-  CurrencyDollarIcon,
-  EyeIcon,
-  ShareIcon,
-  StarIcon,
+  FireIcon,
   SparklesIcon,
-  HeartIcon,
   ClipboardDocumentIcon,
-  ArrowTopRightOnSquareIcon,
-  ShoppingBagIcon
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 import axios from 'axios'
@@ -68,6 +67,54 @@ export default function ProductDetailModal({ product, isOpen, onClose, onSave }:
     const supplierPrice = Math.min(...Object.values(product.supplier_prices) as number[])
     const margin = ((product.price - supplierPrice) / product.price) * 100
     return margin.toFixed(1)
+  }
+
+  const formatTagToHumanReadable = (tag: string): string => {
+    // Remove store prefixes like "allbirds::", "amazon::", etc.
+    const cleanTag = tag.replace(/^[a-zA-Z]+::/, '')
+    
+    // Convert common technical terms to human-readable format
+    const tagMappings: { [key: string]: string } = {
+      'carbon-score': 'Carbon Score',
+      'cfld': 'Color Field',
+      'complete': 'Complete',
+      'edition': 'Edition',
+      'gender': 'Gender',
+      'hue': 'Color Hue',
+      'master': 'Master Category',
+      'material': 'Material',
+      'price-tier': 'Price Tier',
+      'msrp': 'MSRP',
+      'mens': 'Men\'s',
+      'womens': 'Women\'s',
+      'unisex': 'Unisex',
+      'limited': 'Limited Edition',
+      'tree': 'Tree Material',
+      'wool': 'Wool Material',
+      'sugarcane': 'Sugarcane Material',
+      'blue': 'Blue',
+      'white': 'White',
+      'black': 'Black',
+      'red': 'Red',
+      'green': 'Green',
+      'yellow': 'Yellow',
+      'purple': 'Purple',
+      'orange': 'Orange',
+      'pink': 'Pink',
+      'gray': 'Gray',
+      'brown': 'Brown',
+      'mens-cruiser': 'Men\'s Cruiser',
+      'womens-runner': 'Women\'s Runner',
+      'unisex-sneaker': 'Unisex Sneaker',
+      'true': 'Yes',
+      'false': 'No'
+    }
+    
+    // Try to find a mapping, otherwise format the tag nicely
+    return tagMappings[cleanTag.toLowerCase()] || cleanTag
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   const getStoreInfo = () => {
@@ -320,7 +367,7 @@ export default function ProductDetailModal({ product, isOpen, onClose, onSave }:
                             key={index}
                             className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full font-medium"
                           >
-                            {tag}
+                            {formatTagToHumanReadable(tag)}
                           </span>
                         ))}
                       </div>

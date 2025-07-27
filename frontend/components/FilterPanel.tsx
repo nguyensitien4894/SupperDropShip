@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   FunnelIcon, 
   XMarkIcon,
@@ -33,13 +33,14 @@ export default function FilterPanel({
   }
 
   const handleReset = () => {
-    setLocalFilters({
+    const resetFilters: FilterOptions = {
       searchTerm: '',
       category: 'all',
       minScore: 0,
       maxPrice: 1000,
       tags: []
-    })
+    }
+    setLocalFilters(resetFilters)
     onClearFilters()
   }
 
@@ -50,6 +51,54 @@ export default function FilterPanel({
         ? prev.tags.filter(t => t !== tag)
         : [...prev.tags, tag]
     }))
+  }
+
+  const formatTagToHumanReadable = (tag: string): string => {
+    // Remove store prefixes like "allbirds::", "amazon::", etc.
+    const cleanTag = tag.replace(/^[a-zA-Z]+::/, '')
+    
+    // Convert common technical terms to human-readable format
+    const tagMappings: { [key: string]: string } = {
+      'carbon-score': 'Carbon Score',
+      'cfld': 'Color Field',
+      'complete': 'Complete',
+      'edition': 'Edition',
+      'gender': 'Gender',
+      'hue': 'Color Hue',
+      'master': 'Master Category',
+      'material': 'Material',
+      'price-tier': 'Price Tier',
+      'msrp': 'MSRP',
+      'mens': 'Men\'s',
+      'womens': 'Women\'s',
+      'unisex': 'Unisex',
+      'limited': 'Limited Edition',
+      'tree': 'Tree Material',
+      'wool': 'Wool Material',
+      'sugarcane': 'Sugarcane Material',
+      'blue': 'Blue',
+      'white': 'White',
+      'black': 'Black',
+      'red': 'Red',
+      'green': 'Green',
+      'yellow': 'Yellow',
+      'purple': 'Purple',
+      'orange': 'Orange',
+      'pink': 'Pink',
+      'gray': 'Gray',
+      'brown': 'Brown',
+      'mens-cruiser': 'Men\'s Cruiser',
+      'womens-runner': 'Women\'s Runner',
+      'unisex-sneaker': 'Unisex Sneaker',
+      'true': 'Yes',
+      'false': 'No'
+    }
+    
+    // Try to find a mapping, otherwise format the tag nicely
+    return tagMappings[cleanTag.toLowerCase()] || cleanTag
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   return (
@@ -86,6 +135,7 @@ export default function FilterPanel({
                 handleApplyFilters={handleApplyFilters}
                 handleReset={handleReset}
                 onToggle={onToggle}
+                formatTagToHumanReadable={formatTagToHumanReadable}
               />
             </div>
           </div>
@@ -115,6 +165,7 @@ export default function FilterPanel({
                 handleApplyFilters={handleApplyFilters}
                 handleReset={handleReset}
                 onToggle={onToggle}
+                formatTagToHumanReadable={formatTagToHumanReadable}
               />
             </div>
           </div>
@@ -133,6 +184,7 @@ interface FilterContentProps {
   handleApplyFilters: () => void
   handleReset: () => void
   onToggle?: () => void
+  formatTagToHumanReadable: (tag: string) => string
 }
 
 function FilterContent({
@@ -143,7 +195,8 @@ function FilterContent({
   handleTagToggle,
   handleApplyFilters,
   handleReset,
-  onToggle
+  onToggle,
+  formatTagToHumanReadable
 }: FilterContentProps) {
   return (
     <div className="space-y-6">
@@ -233,7 +286,7 @@ function FilterContent({
                   onChange={() => handleTagToggle(tag)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="ml-2 text-sm text-gray-700">{tag}</span>
+                <span className="ml-2 text-sm text-gray-700">{formatTagToHumanReadable(tag)}</span>
               </label>
             ))}
           </div>

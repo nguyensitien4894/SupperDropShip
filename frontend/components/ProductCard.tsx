@@ -111,6 +111,54 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
     return storeName
   }
 
+  const formatTagToHumanReadable = (tag: string): string => {
+    // Remove store prefixes like "allbirds::", "amazon::", etc.
+    const cleanTag = tag.replace(/^[a-zA-Z]+::/, '')
+    
+    // Convert common technical terms to human-readable format
+    const tagMappings: { [key: string]: string } = {
+      'carbon-score': 'Carbon Score',
+      'cfld': 'Color Field',
+      'complete': 'Complete',
+      'edition': 'Edition',
+      'gender': 'Gender',
+      'hue': 'Color Hue',
+      'master': 'Master Category',
+      'material': 'Material',
+      'price-tier': 'Price Tier',
+      'msrp': 'MSRP',
+      'mens': 'Men\'s',
+      'womens': 'Women\'s',
+      'unisex': 'Unisex',
+      'limited': 'Limited Edition',
+      'tree': 'Tree Material',
+      'wool': 'Wool Material',
+      'sugarcane': 'Sugarcane Material',
+      'blue': 'Blue',
+      'white': 'White',
+      'black': 'Black',
+      'red': 'Red',
+      'green': 'Green',
+      'yellow': 'Yellow',
+      'purple': 'Purple',
+      'orange': 'Orange',
+      'pink': 'Pink',
+      'gray': 'Gray',
+      'brown': 'Brown',
+      'mens-cruiser': 'Men\'s Cruiser',
+      'womens-runner': 'Women\'s Runner',
+      'unisex-sneaker': 'Unisex Sneaker',
+      'true': 'Yes',
+      'false': 'No'
+    }
+    
+    // Try to find a mapping, otherwise format the tag nicely
+    return tagMappings[cleanTag.toLowerCase()] || cleanTag
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
   const handleSave = () => {
     if (externalIsSaved === undefined) {
       setInternalIsSaved(!internalIsSaved)
@@ -213,6 +261,27 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
           {getStoreIcon(product.source_store)}
           <span className="text-sm font-medium text-gray-700">{getStoreName(product.source_store)}</span>
         </div>
+
+        {/* Tags */}
+        {product.tags && product.tags.length > 0 && (
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-2">
+              {product.tags.slice(0, 3).map((tag, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium"
+                >
+                  {formatTagToHumanReadable(tag)}
+                </span>
+              ))}
+              {product.tags.length > 3 && (
+                <span className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full font-medium">
+                  +{product.tags.length - 3} more
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex space-x-2">
