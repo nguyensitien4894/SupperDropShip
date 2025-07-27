@@ -53,10 +53,21 @@ export default function Dashboard() {
     filteredProducts.flatMap(product => product.tags)
   )).sort()
 
-  // Get unique stores from all products
-  const availableStores = Array.from(new Set(
+  // Get unique stores from all products, filter to show only amazon, aliexpress, shopify
+  const allStores = Array.from(new Set(
     filteredProducts.map(product => product.source_store)
   )).sort()
+  
+  const availableStores = allStores.filter(store => {
+    const storeLower = store.toLowerCase()
+    // Only show amazon, aliexpress, shopify - exclude specific Shopify store URLs
+    return storeLower === 'amazon.com' || 
+           storeLower === 'aliexpress' || 
+           storeLower === 'shopify' ||
+           storeLower === 'amazon' ||
+           storeLower === 'aliexpress.com' ||
+           storeLower === 'shopify.com'
+  })
 
   const handleViewDetails = (product: Product) => {
     setSelectedProduct(product)
