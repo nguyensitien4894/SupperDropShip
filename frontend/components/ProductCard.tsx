@@ -64,6 +64,53 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
     return margin.toFixed(1)
   }
 
+  const getStoreIcon = (storeName: string) => {
+    const store = storeName.toLowerCase()
+    if (store.includes('aliexpress')) {
+      return (
+        <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center">
+          <span className="text-white text-xs font-bold">A</span>
+        </div>
+      )
+    }
+    if (store.includes('amazon')) {
+      return (
+        <div className="w-6 h-6 bg-yellow-500 rounded flex items-center justify-center">
+          <span className="text-white text-xs font-bold">A</span>
+        </div>
+      )
+    }
+    if (store.includes('shopify') || store.includes('allbirds') || store.includes('glossier') || store.includes('awaytravel') || store.includes('kyliecosmetics')) {
+      return (
+        <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+          <span className="text-white text-xs font-bold">S</span>
+        </div>
+      )
+    }
+    if (store.includes('temu')) {
+      return (
+        <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center">
+          <span className="text-white text-xs font-bold">T</span>
+        </div>
+      )
+    }
+    // Default store icon
+    return (
+      <div className="w-6 h-6 bg-gray-500 rounded flex items-center justify-center">
+        <span className="text-white text-xs font-bold">S</span>
+      </div>
+    )
+  }
+
+  const getStoreName = (storeName: string) => {
+    const store = storeName.toLowerCase()
+    if (store.includes('aliexpress')) return 'AliExpress'
+    if (store.includes('amazon')) return 'Amazon'
+    if (store.includes('shopify') || store.includes('allbirds') || store.includes('glossier') || store.includes('awaytravel') || store.includes('kyliecosmetics')) return 'Shopify'
+    if (store.includes('temu')) return 'Temu'
+    return storeName
+  }
+
   const handleSave = () => {
     if (externalIsSaved === undefined) {
       setInternalIsSaved(!internalIsSaved)
@@ -161,6 +208,12 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
           </div>
         </div>
 
+        {/* Store Name */}
+        <div className="flex items-center space-x-2 mb-4">
+          {getStoreIcon(product.source_store)}
+          <span className="text-sm font-medium text-gray-700">{getStoreName(product.source_store)}</span>
+        </div>
+
         {/* Action Buttons */}
         <div className="flex space-x-2">
           <button 
@@ -170,6 +223,15 @@ export default function ProductCard({ product, onViewDetails, onSave, onShare, i
             <EyeIcon className="w-4 h-4" />
             <span>View Details</span>
           </button>
+          {product.source_url && (
+            <button 
+              onClick={() => window.open(product.source_url, '_blank')}
+              className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-1"
+            >
+              <ShoppingBagIcon className="w-4 h-4" />
+              <span>View Store</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
