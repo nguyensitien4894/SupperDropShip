@@ -10,6 +10,8 @@ from bs4 import BeautifulSoup
 import random
 import time
 
+from .cache_manager import crawler_cache
+
 logger = logging.getLogger(__name__)
 
 class GeneralCrawler:
@@ -29,98 +31,151 @@ class GeneralCrawler:
         }
         
     async def __aenter__(self):
-        timeout = aiohttp.ClientTimeout(total=30)
-        self.session = aiohttp.ClientSession(headers=self.headers, timeout=timeout)
+        # Optimized timeout and connection settings
+        timeout = aiohttp.ClientTimeout(total=10, connect=5, sock_read=8)
+        connector = aiohttp.TCPConnector(
+            limit=20,  # Total connection pool size
+            limit_per_host=5,  # Max connections per host
+            keepalive_timeout=30,
+            enable_cleanup_closed=True
+        )
+        self.session = aiohttp.ClientSession(
+            headers=self.headers, 
+            timeout=timeout,
+            connector=connector
+        )
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
 
+    async def _make_request_with_retry(self, url: str, max_retries: int = 3) -> Optional[str]:
+        """Make HTTP request with retry logic, rate limiting, and caching"""
+        
+        # Check cache first
+        cached_data = crawler_cache.get(url, "html")
+        if cached_data:
+            logger.debug(f"Cache hit for {url}")
+            return cached_data
+        
+        for attempt in range(max_retries):
+            try:
+                # Rate limiting - wait between requests
+                if attempt > 0:
+                    await asyncio.sleep(1 + attempt * 0.5)  # Exponential backoff
+                
+                async with self.session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.text()
+                        # Cache the successful response
+                        crawler_cache.set(url, data, "html")
+                        return data
+                    elif response.status == 429:  # Rate limited
+                        wait_time = int(response.headers.get('Retry-After', 5))
+                        logger.warning(f"Rate limited, waiting {wait_time} seconds")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        logger.warning(f"Request failed with status {response.status}")
+                        continue
+                        
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout on attempt {attempt + 1} for {url}")
+                continue
+            except Exception as e:
+                logger.warning(f"Request error on attempt {attempt + 1}: {e}")
+                continue
+        
+        logger.error(f"Failed to fetch {url} after {max_retries} attempts")
+        return None
+
     async def crawl_aliexpress(self, max_products: int = 50) -> List[Dict[str, Any]]:
-        """Crawl AliExpress for real trending products"""
+        """Crawl AliExpress for real trending products with optimized performance"""
         try:
-            logger.info("Starting AliExpress crawl for real products")
+            logger.info("Starting optimized AliExpress crawl")
             
             # Use AliExpress search API for trending products
             search_urls = [
                 "https://www.aliexpress.com/wholesale?SearchText=wireless+earbuds&catId=0&initiative_id=SB_20240101000000",
                 "https://www.aliexpress.com/wholesale?SearchText=smart+watch&catId=0&initiative_id=SB_20240101000000",
                 "https://www.aliexpress.com/wholesale?SearchText=phone+case&catId=0&initiative_id=SB_20240101000000",
-                "https://www.aliexpress.com/wholesale?SearchText=kitchen+gadgets&catId=0&initiative_id=SB_20240101000000",
-                "https://www.aliexpress.com/wholesale?SearchText=fitness+tracker&catId=0&initiative_id=SB_20240101000000",
-                "https://www.aliexpress.com/wholesale?SearchText=led+lights&catId=0&initiative_id=SB_20240101000000",
-                "https://www.aliexpress.com/wholesale?SearchText=car+accessories&catId=0&initiative_id=SB_20240101000000",
-                "https://www.aliexpress.com/wholesale?SearchText=beauty+products&catId=0&initiative_id=SB_20240101000000"
+                "https://www.aliexpress.com/wholesale?SearchText=kitchen+gadgets&catId=0&initiative_id=SB_20240101000000"
             ]
             
             all_products = []
             
-            for url in search_urls[:4]:  # Limit to 4 URLs to avoid rate limiting
-                try:
-                    logger.info(f"Crawling AliExpress URL: {url}")
-                    async with self.session.get(url) as response:
-                        if response.status != 200:
-                            logger.warning(f"AliExpress URL {url} returned status {response.status}")
-                            continue
-                        
-                        html = await response.text()
-                        logger.info(f"Got HTML response, length: {len(html)}")
-                        
-                        soup = BeautifulSoup(html, 'html.parser')
-                        
-                        # Look for product cards with different selectors
-                        product_selectors = [
-                            'div[data-product-id]',
-                            '.product-item',
-                            '.list-item',
-                            '[data-ae_object_value]',
-                            '.JIIxO',
-                            '.manhattan--container--1lP57Ag',
-                            '.list--gallery--C2f2tvm'
-                        ]
-                        
-                        products_found = []
-                        for selector in product_selectors:
-                            products_found = soup.select(selector)
-                            if products_found:
-                                logger.info(f"Found {len(products_found)} products with selector: {selector}")
-                                break
-                        
-                        if not products_found:
-                            logger.warning(f"No products found with any selector for URL: {url}")
-                            # Try to generate some mock AliExpress products as fallback
-                            fallback_products = self._generate_aliexpress_fallback_products(max_products//4)
-                            all_products.extend(fallback_products)
-                            continue
-                        
-                        for card in products_found[:max_products//4]:
-                            try:
-                                product = self._extract_aliexpress_product_real(card, url)
-                                if product and product not in all_products:
-                                    all_products.append(product)
-                            except Exception as e:
-                                logger.error(f"Error extracting AliExpress product: {e}")
-                                continue
-                        
-                        # Add delay between requests
-                        await asyncio.sleep(3)
-                        
-                except Exception as e:
-                    logger.error(f"Error crawling AliExpress URL {url}: {e}")
-                    # Generate fallback products for this URL
-                    fallback_products = self._generate_aliexpress_fallback_products(max_products//4)
-                    all_products.extend(fallback_products)
-                    continue
+            # Process URLs in parallel with limited concurrency
+            semaphore = asyncio.Semaphore(2)  # Limit concurrent requests
             
-            logger.info(f"Successfully extracted {len(all_products)} real products from AliExpress")
+            async def crawl_single_url(url: str):
+                async with semaphore:
+                    return await self._crawl_aliexpress_url(url, max_products // len(search_urls))
+            
+            # Execute all URLs in parallel
+            tasks = [crawl_single_url(url) for url in search_urls]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Combine results
+            for result in results:
+                if isinstance(result, list):
+                    all_products.extend(result)
+                else:
+                    logger.error(f"AliExpress crawl error: {result}")
+            
+            logger.info(f"AliExpress crawl completed: {len(all_products)} products")
             return all_products
                 
         except Exception as e:
             logger.error(f"Error in AliExpress crawl: {e}")
-            # Generate fallback products
-            fallback_products = self._generate_aliexpress_fallback_products(max_products)
-            return fallback_products
+            return []
+
+    async def _crawl_aliexpress_url(self, url: str, max_products: int) -> List[Dict[str, Any]]:
+        """Crawl a single AliExpress URL"""
+        try:
+            html = await self._make_request_with_retry(url)
+            if not html:
+                logger.warning(f"Failed to get HTML from {url}")
+                return []
+            
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Optimized selectors - try most specific first
+            product_selectors = [
+                '.list--gallery--C2f2tvm .list-item',
+                '.JIIxO .product-item',
+                '[data-ae_object_value]',
+                'div[data-product-id]',
+                '.product-item'
+            ]
+            
+            products_found = []
+            for selector in product_selectors:
+                products_found = soup.select(selector)
+                if products_found:
+                    logger.info(f"Found {len(products_found)} products with selector: {selector}")
+                    break
+            
+            if not products_found:
+                logger.warning(f"No products found for URL: {url}")
+                return []
+            
+            # Extract products
+            products = []
+            for card in products_found[:max_products]:
+                try:
+                    product = self._extract_aliexpress_product_real(card, url)
+                    if product:
+                        products.append(product)
+                except Exception as e:
+                    logger.warning(f"Error extracting product: {e}")
+                    continue
+            
+            return products
+            
+        except Exception as e:
+            logger.error(f"Error crawling AliExpress URL {url}: {e}")
+            return []
 
     def _generate_aliexpress_fallback_products(self, count: int) -> List[Dict[str, Any]]:
         """Generate realistic AliExpress products when crawling fails"""

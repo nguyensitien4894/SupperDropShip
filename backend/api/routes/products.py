@@ -1,15 +1,20 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks
 from typing import List, Optional
 from datetime import datetime
 import logging
+import asyncio
 from ..dependencies import get_current_user
 from ...database.memory_storage import memory_storage
 from ...database.models import Product, ProductsResponse, ProductResponse, CrawlRequest
 from ...scoring.engine import ScoringEngine
 from ...crawlers.crawler_manager import crawler_manager
+from ...crawlers.cache_manager import crawler_cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Global variable to track background crawl status
+background_crawl_task = None
 
 @router.get("/", response_model=ProductsResponse)
 async def get_products(
@@ -100,13 +105,10 @@ async def create_product(product: Product):
             scoring_engine = ScoringEngine()
             product.score = scoring_engine.calculate_score(product)
         
-        created_product = await product_repository.create_product(product)
+        # Add to memory storage
+        await memory_storage.add_product(product)
         
-        return ProductResponse(
-            success=True,
-            data=created_product,
-            message="Product created successfully"
-        )
+        return ProductResponse(success=True, data=product)
         
     except Exception as e:
         logger.error(f"Failed to create product: {e}")
@@ -114,18 +116,14 @@ async def create_product(product: Product):
 
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(product_id: str, product_update: dict):
-    """Update a product"""
+    """Update an existing product"""
     try:
-        updated_product = await product_repository.update_product(product_id, product_update)
+        updated_product = await memory_storage.update_product(product_id, product_update)
         
         if not updated_product:
             raise HTTPException(status_code=404, detail="Product not found")
         
-        return ProductResponse(
-            success=True,
-            data=updated_product,
-            message="Product updated successfully"
-        )
+        return ProductResponse(success=True, data=updated_product)
         
     except HTTPException:
         raise
@@ -137,7 +135,7 @@ async def update_product(product_id: str, product_update: dict):
 async def delete_product(product_id: str):
     """Delete a product"""
     try:
-        success = await product_repository.delete_product(product_id)
+        success = await memory_storage.delete_product(product_id)
         
         if not success:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -152,7 +150,7 @@ async def delete_product(product_id: str):
 
 @router.get("/categories/list")
 async def get_categories():
-    """Get all available categories"""
+    """Get list of all product categories"""
     try:
         categories = await memory_storage.get_categories()
         return {"success": True, "data": categories}
@@ -163,7 +161,7 @@ async def get_categories():
 
 @router.get("/tags/list")
 async def get_tags():
-    """Get all available tags"""
+    """Get list of all product tags"""
     try:
         tags = await memory_storage.get_tags()
         return {"success": True, "data": tags}
@@ -174,29 +172,34 @@ async def get_tags():
 
 @router.get("/stats/overview")
 async def get_stats():
-    """Get product statistics"""
+    """Get product statistics overview"""
     try:
         stats = await memory_storage.get_stats()
         return {"success": True, "data": stats}
         
     except Exception as e:
         logger.error(f"Failed to get stats: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve statistics")
+        raise HTTPException(status_code=500, detail="Failed to retrieve stats")
 
 @router.post("/bulk/import")
 async def bulk_import_products(products: List[Product]):
     """Bulk import products"""
     try:
         created_products = []
-        scoring_engine = ScoringEngine()
         
         for product in products:
-            # Calculate score if not provided
-            if product.score == 0:
-                product.score = scoring_engine.calculate_score(product)
-            
-            created_product = await product_repository.create_product(product)
-            created_products.append(created_product)
+            try:
+                # Calculate score if not provided
+                if product.score == 0:
+                    scoring_engine = ScoringEngine()
+                    product.score = scoring_engine.calculate_score(product)
+                
+                await memory_storage.add_product(product)
+                created_products.append(product)
+                
+            except Exception as e:
+                logger.error(f"Error importing product {product.title}: {e}")
+                continue
         
         return {
             "success": True,
@@ -260,9 +263,9 @@ async def advanced_search(request: CrawlRequest):
 
 @router.post("/crawl/start")
 async def start_product_crawl(max_products_per_source: int = 30):
-    """Start crawling products from various sources"""
+    """Start crawling products from various sources (blocking)"""
     try:
-        logger.info(f"Starting product crawl with {max_products_per_source} products per source")
+        logger.info(f"Starting optimized product crawl with {max_products_per_source} products per source")
         
         # Run the crawler
         async with crawler_manager:
@@ -281,21 +284,122 @@ async def start_product_crawl(max_products_per_source: int = 30):
         logger.error(f"Error during product crawl: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to crawl products: {str(e)}")
 
+@router.post("/crawl/background")
+async def start_background_crawl(max_products_per_source: int = 30):
+    """Start crawling products in background (non-blocking)"""
+    global background_crawl_task
+    
+    if background_crawl_task and not background_crawl_task.done():
+        raise HTTPException(status_code=409, detail="Background crawl already in progress")
+    
+    async def run_background_crawl():
+        global background_crawl_task
+        try:
+            async with crawler_manager:
+                await crawler_manager.run_full_crawl(max_products_per_source)
+            logger.info("Background crawl completed successfully")
+        except Exception as e:
+            logger.error(f"Background crawl failed: {e}")
+        finally:
+            background_crawl_task = None
+    
+    background_crawl_task = asyncio.create_task(run_background_crawl())
+    
+    return {
+        "success": True,
+        "message": "Background crawl started successfully",
+        "data": {
+            "status": "started",
+            "max_products_per_source": max_products_per_source
+        }
+    }
+
+@router.get("/crawl/progress")
+async def get_crawl_progress():
+    """Get current crawl progress"""
+    try:
+        progress = crawler_manager.get_crawl_progress()
+        return {
+            "success": True,
+            "data": progress
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting crawl progress: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get crawl progress")
+
 @router.get("/crawl/status")
 async def get_crawl_status():
     """Get current crawl status and product count"""
     try:
         total_products = len(memory_storage.products)
         
+        # Check if background crawl is running
+        background_status = "idle"
+        if background_crawl_task and not background_crawl_task.done():
+            background_status = "running"
+        elif background_crawl_task and background_crawl_task.done():
+            background_status = "completed"
+        
         return {
             "success": True,
             "data": {
                 "total_products": total_products,
                 "last_updated": datetime.utcnow().isoformat(),
-                "status": "ready"
+                "status": "ready",
+                "background_crawl_status": background_status
             }
         }
         
     except Exception as e:
         logger.error(f"Error getting crawl status: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get crawl status") 
+        raise HTTPException(status_code=500, detail="Failed to get crawl status")
+
+@router.get("/cache/stats")
+async def get_cache_stats():
+    """Get cache statistics"""
+    try:
+        stats = crawler_cache.get_cache_stats()
+        return {
+            "success": True,
+            "data": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get cache stats")
+
+@router.delete("/cache/clear")
+async def clear_cache(cache_type: Optional[str] = None):
+    """Clear cache"""
+    try:
+        deleted_count = crawler_cache.clear(cache_type)
+        return {
+            "success": True,
+            "message": f"Cleared {deleted_count} cache files",
+            "data": {
+                "deleted_count": deleted_count,
+                "cache_type": cache_type or "all"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear cache")
+
+@router.post("/cache/cleanup")
+async def cleanup_expired_cache():
+    """Clean up expired cache files"""
+    try:
+        deleted_count = crawler_cache.cleanup_expired()
+        return {
+            "success": True,
+            "message": f"Cleaned up {deleted_count} expired cache files",
+            "data": {
+                "deleted_count": deleted_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error cleaning up expired cache: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cleanup expired cache") 

@@ -10,6 +10,8 @@ from bs4 import BeautifulSoup
 import random
 import time
 
+from .cache_manager import crawler_cache
+
 logger = logging.getLogger(__name__)
 
 class ShopifyCrawler:
@@ -20,48 +22,91 @@ class ShopifyCrawler:
         }
         
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession(headers=self.headers)
+        # Optimized timeout and connection settings
+        timeout = aiohttp.ClientTimeout(total=8, connect=3, sock_read=5)
+        connector = aiohttp.TCPConnector(
+            limit=15,  # Total connection pool size
+            limit_per_host=3,  # Max connections per host
+            keepalive_timeout=20,
+            enable_cleanup_closed=True
+        )
+        self.session = aiohttp.ClientSession(
+            headers=self.headers,
+            timeout=timeout,
+            connector=connector
+        )
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
 
+    async def _make_request_with_retry(self, url: str, max_retries: int = 2) -> Optional[Dict[str, Any]]:
+        """Make HTTP request with retry logic and caching"""
+        
+        # Check cache first
+        cached_data = crawler_cache.get(url, "json")
+        if cached_data:
+            logger.debug(f"Cache hit for {url}")
+            return cached_data
+        
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    await asyncio.sleep(0.5 + attempt * 0.3)  # Exponential backoff
+                
+                async with self.session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        # Cache the successful response
+                        crawler_cache.set(url, data, "json")
+                        return data
+                    else:
+                        logger.warning(f"Request failed with status {response.status} for {url}")
+                        continue
+                        
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout on attempt {attempt + 1} for {url}")
+                continue
+            except Exception as e:
+                logger.warning(f"Request error on attempt {attempt + 1}: {e}")
+                continue
+        
+        logger.error(f"Failed to fetch {url} after {max_retries} attempts")
+        return None
+
     async def crawl_shopify_store(self, store_url: str, max_products: int = 50) -> List[Dict[str, Any]]:
-        """Crawl a Shopify store and extract product information"""
+        """Crawl a Shopify store and extract product information with optimized performance"""
         try:
-            logger.info(f"Starting to crawl Shopify store: {store_url}")
+            logger.info(f"Starting optimized Shopify store crawl: {store_url}")
             
             # Normalize store URL
             if not store_url.startswith('http'):
                 store_url = f'https://{store_url}'
             
-            # Try different Shopify API endpoints
+            # Try different Shopify API endpoints in parallel
             api_endpoints = [
                 '/products.json',
                 '/collections/all/products.json',
                 '/collections/frontpage/products.json'
             ]
             
-            products_data = []
-            
+            # Try endpoints in parallel
+            tasks = []
             for endpoint in api_endpoints:
-                try:
-                    products_url = urljoin(store_url, endpoint)
-                    logger.info(f"Trying endpoint: {products_url}")
-                    
-                    async with self.session.get(products_url, timeout=aiohttp.ClientTimeout(total=10)) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            products_data = data.get('products', [])
-                            logger.info(f"Found {len(products_data)} products using endpoint: {endpoint}")
-                            break
-                        else:
-                            logger.warning(f"Endpoint {endpoint} returned status {response.status}")
-                            
-                except Exception as e:
-                    logger.warning(f"Error trying endpoint {endpoint}: {e}")
-                    continue
+                products_url = urljoin(store_url, endpoint)
+                tasks.append(self._make_request_with_retry(products_url))
+            
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            products_data = []
+            for i, result in enumerate(results):
+                if isinstance(result, dict):
+                    products_data = result.get('products', [])
+                    logger.info(f"Found {len(products_data)} products using endpoint: {api_endpoints[i]}")
+                    break
+                else:
+                    logger.warning(f"Endpoint {api_endpoints[i]} failed: {result}")
             
             if not products_data:
                 logger.warning(f"No products found for store: {store_url}")
@@ -70,20 +115,23 @@ class ShopifyCrawler:
             # Limit products
             products_data = products_data[:max_products]
             
-            # Extract product information
+            # Extract product information in parallel
+            semaphore = asyncio.Semaphore(5)  # Limit concurrent product processing
+            
+            async def extract_product(product_data):
+                async with semaphore:
+                    return await self._extract_product_info(product_data, store_url)
+            
+            tasks = [extract_product(product_data) for product_data in products_data]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Filter successful results
             products = []
-            for product_data in products_data:
-                try:
-                    product = await self._extract_product_info(product_data, store_url)
-                    if product:
-                        products.append(product)
-                        
-                    # Add delay to be respectful
-                    await asyncio.sleep(0.5)
-                    
-                except Exception as e:
-                    logger.error(f"Error extracting product {product_data.get('id')}: {e}")
-                    continue
+            for result in results:
+                if isinstance(result, dict):
+                    products.append(result)
+                else:
+                    logger.warning(f"Product extraction failed: {result}")
             
             logger.info(f"Successfully extracted {len(products)} products from {store_url}")
             return products
