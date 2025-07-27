@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { 
-  ShoppingBagIcon, 
   ChartBarIcon, 
-  TagIcon, 
-  GlobeAltIcon,
-  EyeIcon,
-  CurrencyDollarIcon,
+  CurrencyDollarIcon, 
+  ArrowTrendingUpIcon,
+  FireIcon,
   StarIcon,
-  ArrowTrendingUpIcon
-} from '@heroicons/react/24/outline';
+  EyeIcon,
+  ShoppingBagIcon,
+  GlobeAltIcon
+} from '@heroicons/react/24/outline'
 import { useNotifications } from '../components/NotificationSystem';
 
 interface StoreData {
@@ -49,6 +49,8 @@ interface StoreProduct {
   tiktok_mentions: any[];
   created_at: string;
   updated_at: string;
+  supplier_links?: Record<string, string>;
+  supplier_prices?: Record<string, number>;
 }
 
 interface CategoryData {
@@ -161,6 +163,69 @@ const Store: React.FC = () => {
     });
   };
 
+  const getStoreName = (storeName: string) => {
+    const store = storeName.toLowerCase()
+    if (store.includes('aliexpress')) return 'AliExpress'
+    if (store.includes('amazon')) return 'Amazon'
+    if (store.includes('shopify') || store.includes('allbirds') || store.includes('glossier') || store.includes('awaytravel') || store.includes('kyliecosmetics')) return 'Shopify'
+    if (store.includes('temu')) return 'Temu'
+    return storeName
+  }
+
+  const getStoreIcon = (storeName: string) => {
+    if (storeName.includes('aliexpress')) return <GlobeAltIcon className="h-4 w-4 text-blue-600" />;
+    if (storeName.includes('amazon')) return <GlobeAltIcon className="h-4 w-4 text-orange-600" />;
+    if (storeName.includes('shopify') || storeName.includes('allbirds') || storeName.includes('glossier') || storeName.includes('awaytravel') || storeName.includes('kyliecosmetics')) return <GlobeAltIcon className="h-4 w-4 text-green-600" />;
+    if (storeName.includes('temu')) return <GlobeAltIcon className="h-4 w-4 text-purple-600" />;
+    return <GlobeAltIcon className="h-4 w-4 text-gray-600" />;
+  };
+
+  const getStoreInfo = (product: StoreProduct) => {
+    const storeInfo = []
+    
+    // Source store
+    if (product.source_store) {
+      storeInfo.push({
+        label: 'Source Store',
+        value: product.source_store,
+        type: 'store'
+      })
+    }
+    
+    // Source URL
+    if (product.source_url) {
+      storeInfo.push({
+        label: 'Product URL',
+        value: product.source_url,
+        type: 'url'
+      })
+    }
+    
+    // Supplier links
+    if (product.supplier_links && Object.keys(product.supplier_links).length > 0) {
+      Object.entries(product.supplier_links).forEach(([platform, url]) => {
+        storeInfo.push({
+          label: `${platform.charAt(0).toUpperCase() + platform.slice(1)}`,
+          value: url,
+          type: 'supplier'
+        })
+      })
+    }
+    
+    // Supplier prices
+    if (product.supplier_prices && Object.keys(product.supplier_prices).length > 0) {
+      Object.entries(product.supplier_prices).forEach(([platform, price]) => {
+        storeInfo.push({
+          label: `${platform.charAt(0).toUpperCase() + platform.slice(1)} Price`,
+          value: `$${price}`,
+          type: 'price'
+        })
+      })
+    }
+    
+    return storeInfo
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -185,7 +250,7 @@ const Store: React.FC = () => {
             {[
               { id: 'overview', name: 'Overview', icon: ShoppingBagIcon },
               { id: 'products', name: 'Products', icon: ChartBarIcon },
-              { id: 'categories', name: 'Categories', icon: TagIcon },
+              { id: 'categories', name: 'Categories', icon: GlobeAltIcon },
               { id: 'sources', name: 'Sources', icon: GlobeAltIcon }
             ].map((tab) => (
               <button
@@ -393,7 +458,10 @@ const Store: React.FC = () => {
                                 {product.title}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {product.source_store}
+                                <div className="flex items-center space-x-1">
+                                  {getStoreIcon(product.source_store)}
+                                  <span>{getStoreName(product.source_store)}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -418,7 +486,10 @@ const Store: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {product.source_store}
+                          <div className="flex items-center space-x-1">
+                            {getStoreIcon(product.source_store)}
+                            <span>{getStoreName(product.source_store)}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div className="flex space-x-2">

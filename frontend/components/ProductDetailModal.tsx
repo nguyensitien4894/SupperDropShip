@@ -11,7 +11,8 @@ import {
   SparklesIcon,
   HeartIcon,
   ClipboardDocumentIcon,
-  ArrowTopRightOnSquareIcon
+  ArrowTopRightOnSquareIcon,
+  ShoppingBagIcon
 } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 import axios from 'axios'
@@ -67,6 +68,99 @@ export default function ProductDetailModal({ product, isOpen, onClose, onSave }:
     const supplierPrice = Math.min(...Object.values(product.supplier_prices) as number[])
     const margin = ((product.price - supplierPrice) / product.price) * 100
     return margin.toFixed(1)
+  }
+
+  const getStoreInfo = () => {
+    const storeInfo = []
+    
+    // Source store
+    if (product.source_store) {
+      storeInfo.push({
+        label: 'Source Store',
+        value: product.source_store,
+        type: 'store'
+      })
+    }
+    
+    // Source URL
+    if (product.source_url) {
+      storeInfo.push({
+        label: 'Product URL',
+        value: product.source_url,
+        type: 'url'
+      })
+    }
+    
+    // Supplier links
+    if (product.supplier_links && Object.keys(product.supplier_links).length > 0) {
+      Object.entries(product.supplier_links).forEach(([platform, url]) => {
+        storeInfo.push({
+          label: `${platform.charAt(0).toUpperCase() + platform.slice(1)}`,
+          value: url,
+          type: 'supplier'
+        })
+      })
+    }
+    
+    // Supplier prices
+    if (product.supplier_prices && Object.keys(product.supplier_prices).length > 0) {
+      Object.entries(product.supplier_prices).forEach(([platform, price]) => {
+        storeInfo.push({
+          label: `${platform.charAt(0).toUpperCase() + platform.slice(1)} Price`,
+          value: `$${price}`,
+          type: 'price'
+        })
+      })
+    }
+    
+    return storeInfo
+  }
+
+  const getStoreIcon = (storeName: string) => {
+    const store = storeName.toLowerCase()
+    if (store.includes('aliexpress')) {
+      return (
+        <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+          <span className="text-white text-sm font-bold">A</span>
+        </div>
+      )
+    }
+    if (store.includes('amazon')) {
+      return (
+        <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+          <span className="text-white text-sm font-bold">A</span>
+        </div>
+      )
+    }
+    if (store.includes('shopify') || store.includes('allbirds') || store.includes('glossier') || store.includes('awaytravel') || store.includes('kyliecosmetics')) {
+      return (
+        <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+          <span className="text-white text-sm font-bold">S</span>
+        </div>
+      )
+    }
+    if (store.includes('temu')) {
+      return (
+        <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+          <span className="text-white text-sm font-bold">T</span>
+        </div>
+      )
+    }
+    // Default store icon
+    return (
+      <div className="w-8 h-8 bg-gray-500 rounded-lg flex items-center justify-center">
+        <span className="text-white text-sm font-bold">S</span>
+      </div>
+    )
+  }
+
+  const getStoreName = (storeName: string) => {
+    const store = storeName.toLowerCase()
+    if (store.includes('aliexpress')) return 'AliExpress'
+    if (store.includes('amazon')) return 'Amazon'
+    if (store.includes('shopify') || store.includes('allbirds') || store.includes('glossier') || store.includes('awaytravel') || store.includes('kyliecosmetics')) return 'Shopify'
+    if (store.includes('temu')) return 'Temu'
+    return storeName
   }
 
   const handleSave = () => {
@@ -255,8 +349,21 @@ export default function ProductDetailModal({ product, isOpen, onClose, onSave }:
 
                   {/* Store Info */}
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-2">Source Store</h3>
-                    <p className="text-gray-600">{product.source_store}</p>
+                    <h3 className="font-semibold text-gray-900 mb-3">Store Information</h3>
+                    <div className="space-y-3">
+                      {getStoreInfo().map((item, index) => (
+                        <div key={index} className="flex items-center space-x-3">
+                          {item.type === 'store' && getStoreIcon(item.value)}
+                          {item.type === 'url' && <ShoppingBagIcon className="w-6 h-6 text-blue-500" />}
+                          {item.type === 'supplier' && <HeartIcon className="w-6 h-6 text-purple-500" />}
+                          {item.type === 'price' && <CurrencyDollarIcon className="w-6 h-6 text-green-500" />}
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">{item.label}</div>
+                            <div className="text-sm text-gray-600 break-all">{item.value}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
